@@ -55,6 +55,32 @@
       background: rgba(255,255,255,0.15);
       border-color: rgba(255,255,255,0.3);
     }
+    .icon-btn {
+      width: 38px;
+      height: 38px;
+      padding: 0;
+      border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.05rem;
+      line-height: 1;
+    }
+    #muteBtn {
+      position: fixed;
+      top: 14px;
+      right: 14px;
+      z-index: 20;
+    }
+    #updateBtn {
+      position: fixed;
+      top: 14px;
+      left: 14px;
+      z-index: 20;
+    }
+    #soundModeBtn {
+      margin-top: 0.75rem;
+    }
     .timer-input {
       background: rgba(255,255,255,0.06);
       border: 1px solid rgba(255,255,255,0.15);
@@ -82,6 +108,7 @@
     }
     .cancel-btn:hover { color: #aa6666; }
     .cancel-btn.hidden { display: none; }
+    .hidden { display: none !important; }
     .playlist {
       margin-top: 1rem;
       width: min(620px, 92vw);
@@ -150,12 +177,14 @@
     <button class="timer-btn" onclick="startTimer(30)">30m</button>
     <button class="timer-btn" onclick="startTimer(45)">45m</button>
     <button class="timer-btn" onclick="startTimer(60)">60m</button>
-    <button class="timer-btn" id="soundModeBtn" onclick="toggleSoundMode()">Sound: Rain</button>
     <input class="timer-input" id="customMin" type="number" min="1" max="240" placeholder="min"
            onkeydown="if(event.key==='Enter'){startTimer(parseInt(this.value))}">
   </div>
+  <button class="timer-btn hidden" id="soundModeBtn" onclick="toggleSoundMode()">Sound: Rain</button>
+  <button class="timer-btn icon-btn hidden" id="muteBtn" onclick="toggleMute()" title="Toggle mute" aria-label="Toggle mute">🔊</button>
+  <button class="timer-btn icon-btn" id="updateBtn" onclick="triggerUpdate()" title="Check for updates" aria-label="Check for updates">↻</button>
   <button class="cancel-btn hidden" id="cancelBtn" onclick="cancelTimer()">[ abbrechen ]</button>
-  <div class="playlist">
+  <div class="playlist hidden" id="playlistPanel">
     <div class="playlist-title">LoFi Playlist (10 Tracks)</div>
     <div class="playlist-track" id="playlistTrackName">-</div>
     <div class="playlist-controls">
@@ -199,6 +228,7 @@
     let rainCtx = null;
     let rainNodes = [];
     let soundMode = 'rain';
+    let isMuted = false;
     const lofiAudio = document.getElementById('lofiAudio');
     const lofiTracks = [
       { name: 'Magenta Metropolis', src: 'audio/lofi/track01.mp3' },
@@ -236,10 +266,47 @@
     function toggleSoundMode() {
       soundMode = soundMode === 'rain' ? 'lofi' : 'rain';
       updateSoundButton();
+      updatePlaylistVisibility();
       if (timerInterval) {
         stopAmbience();
         startAmbience();
       }
+    }
+
+    function updateMuteButton() {
+      const btn = document.getElementById('muteBtn');
+      btn.textContent = isMuted ? '🔇' : '🔊';
+      btn.title = isMuted ? 'Unmute' : 'Mute';
+      btn.setAttribute('aria-label', isMuted ? 'Unmute' : 'Mute');
+    }
+
+    function applyRainMuteState() {
+      if (!rainCtx || rainNodes.length < 9) return;
+      const gain = rainNodes[3];
+      const patterGain = rainNodes[8];
+      const now = rainCtx.currentTime;
+      gain.gain.cancelScheduledValues(now);
+      patterGain.gain.cancelScheduledValues(now);
+      gain.gain.linearRampToValueAtTime(isMuted ? 0 : 0.15, now + 0.1);
+      patterGain.gain.linearRampToValueAtTime(isMuted ? 0 : 0.04, now + 0.1);
+    }
+
+    function toggleMute() {
+      isMuted = !isMuted;
+      lofiAudio.muted = isMuted;
+      applyRainMuteState();
+      updateMuteButton();
+    }
+
+    function triggerUpdate() {
+      const ok = confirm('Update herunterladen und installieren? Die App wird danach neu gestartet.');
+      if (!ok) return;
+      sendToSwift('update');
+    }
+
+    function updatePlaylistVisibility() {
+      const panel = document.getElementById('playlistPanel');
+      panel.classList.toggle('hidden', !timerInterval || soundMode !== 'lofi');
     }
 
     function updateTrackDisplay() {
@@ -358,7 +425,7 @@
 
       const gain = rainCtx.createGain();
       gain.gain.value = 0;
-      gain.gain.linearRampToValueAtTime(0.15, rainCtx.currentTime + 2);
+      gain.gain.linearRampToValueAtTime(isMuted ? 0 : 0.15, rainCtx.currentTime + 2);
       lfoGain.connect(gain.gain); // modulate the main gain
 
       noiseSource.connect(bandpass);
@@ -389,7 +456,7 @@
 
       const patterGain = rainCtx.createGain();
       patterGain.gain.value = 0;
-      patterGain.gain.linearRampToValueAtTime(0.04, rainCtx.currentTime + 2);
+      patterGain.gain.linearRampToValueAtTime(isMuted ? 0 : 0.04, rainCtx.currentTime + 2);
 
       patterSource.connect(patterFilter);
       patterFilter.connect(patterGain);
@@ -409,7 +476,7 @@
     }
 
     function playDrop() {
-      if (!rainCtx) return;
+      if (!rainCtx || isMuted) return;
       const osc = rainCtx.createOscillator();
       const g = rainCtx.createGain();
       const freq = 2000 + Math.random() * 4000;
@@ -444,9 +511,11 @@
     }
 
     function startLofi() {
+      lofiAudio.muted = isMuted;
       lofiAudio.play().then(updateLofiPlayButton).catch(() => {
         soundMode = 'rain';
         updateSoundButton();
+        updatePlaylistVisibility();
         updateLofiPlayButton();
         startRain();
       });
@@ -480,8 +549,11 @@
       clockEl.classList.add('countdown');
       document.getElementById('timerControls').classList.add('hidden');
       document.getElementById('cancelBtn').classList.remove('hidden');
+      document.getElementById('soundModeBtn').classList.remove('hidden');
+      document.getElementById('muteBtn').classList.remove('hidden');
+      updatePlaylistVisibility();
 
-      sendToSwift('start');
+      notifyFocus('start');
       startAmbience();
 
       timerInterval = setInterval(tickTimer, 200);
@@ -508,9 +580,12 @@
       document.getElementById('clock').classList.remove('countdown');
       document.getElementById('timerControls').classList.remove('hidden');
       document.getElementById('cancelBtn').classList.add('hidden');
+      document.getElementById('soundModeBtn').classList.add('hidden');
+      document.getElementById('muteBtn').classList.add('hidden');
+      document.getElementById('playlistPanel').classList.add('hidden');
       updateClock();
 
-      sendToSwift('stop');
+      notifyFocus('stop');
       stopAmbience();
       playAlarm();
       showNotification();
@@ -523,19 +598,34 @@
       document.getElementById('clock').classList.remove('countdown');
       document.getElementById('timerControls').classList.remove('hidden');
       document.getElementById('cancelBtn').classList.add('hidden');
+      document.getElementById('soundModeBtn').classList.add('hidden');
+      document.getElementById('muteBtn').classList.add('hidden');
+      document.getElementById('playlistPanel').classList.add('hidden');
       updateClock();
 
-      sendToSwift('stop');
+      notifyFocus('stop');
       stopAmbience();
     }
 
     function sendToSwift(action) {
       try {
-        window.webkit.messageHandlers.focus.postMessage({ action: action });
+        const handler = window?.webkit?.messageHandlers?.focus;
+        if (!handler) return;
+        try {
+          handler.postMessage({ action: action });
+        } catch (_) {
+          handler.postMessage(action);
+        }
       } catch (e) {}
     }
 
+    function notifyFocus(action) {
+      sendToSwift(action);
+      setTimeout(() => sendToSwift(action), 180);
+    }
+
     function playAlarm() {
+      if (isMuted) return;
       const ctx = new (window.AudioContext || window.webkitAudioContext)();
       const freqs = [880, 0, 880, 0, 880, 0, 1100, 0, 880];
       const step = 0.15;
@@ -572,6 +662,7 @@
 
     updateClock();
     loadLofiTrack(0, false);
+    updateMuteButton();
     lofiAudio.addEventListener('timeupdate', updateLofiProgress);
     lofiAudio.addEventListener('loadedmetadata', updateLofiProgress);
     lofiAudio.addEventListener('ended', () => nextLofiTrack());

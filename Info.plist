@@ -10,10 +10,14 @@
   <string>com.vincentjutte.clock</string>
   <key>CFBundleVersion</key>
   <string>1.0</string>
+  <key>CFBundleShortVersionString</key>
+  <string>1.0.0</string>
   <key>CFBundlePackageType</key>
   <string>APPL</string>
   <key>CFBundleIconFile</key>
   <string>AppIcon</string>
+  <key>ClockUpdateRepo</key>
+  <string>Viralhouse/clock-app</string>
   <key>NSAppleEventsUsageDescription</key>
   <string>Clock benötigt Zugriff auf System Events um "Nicht stören" automatisch zu steuern.</string>
 </dict>
