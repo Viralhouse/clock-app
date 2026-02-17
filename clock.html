@@ -264,7 +264,7 @@
   <button class="timer-btn hidden" id="soundModeBtn" onclick="toggleSoundMode()">Sound: Rain</button>
   <button class="timer-btn icon-btn hidden" id="muteBtn" onclick="toggleMute()" title="Toggle mute" aria-label="Toggle mute">🔊</button>
   <button class="timer-btn icon-btn" id="updateBtn" onclick="triggerUpdate()" title="Check for updates" aria-label="Check for updates">↻</button>
-  <button class="timer-btn icon-btn" id="themeBtn" onclick="toggleTheme()" title="Toggle theme" aria-label="Toggle theme">☀️</button>
+  <button class="timer-btn icon-btn" id="themeBtn" onclick="toggleTheme()" title="Toggle theme" aria-label="Toggle theme">◐</button>
   <button class="cancel-btn hidden" id="cancelBtn" onclick="cancelTimer()">[ abbrechen ]</button>
   <div class="playlist hidden" id="playlistPanel">
     <div class="playlist-title">LoFi Playlist (10 Tracks)</div>
@@ -358,7 +358,7 @@
 
     function updateThemeButton() {
       const btn = document.getElementById('themeBtn');
-      btn.textContent = theme === 'dark' ? '☀️' : '🌙';
+      btn.textContent = theme === 'dark' ? '◐' : '◑';
       btn.title = theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode';
       btn.setAttribute('aria-label', btn.title);
     }
