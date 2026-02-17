@@ -80,3 +80,61 @@ swiftc /tmp/ClockApp.swift -o /tmp/ClockApp -framework Cocoa -framework WebKit
 cp /tmp/ClockApp "/Users/vincentjutte/Applications/Clock.app/Contents/MacOS/ClockApp"
 codesign --force --deep --sign - /Users/vincentjutte/Applications/Clock.app
 ```
+---
+
+## Feature Request: Lofi Hip Hop Beats
+
+### Goal
+The user wants to extend the clock app to include the option to play lofi hip hop beats in addition to the existing rain sounds.
+
+### Challenge: Finding a Suitable Audio File
+My attempt to automatically find and download a copyright-free MP3 file was unsuccessful. The main difficulties were:
+-   Search tools are not well-suited for discovering direct download links for audio files.
+-   Many websites with free audio use JavaScript-based download buttons that cannot be programmatically triggered.
+-   Verifying the license of audio files programmatically is unreliable.
+
+### Next Steps (for the next agent)
+
+The core task is to obtain a direct link to an MP3 file and then integrate it into the `clock.html` page.
+
+**1. Obtain MP3 File from User**
+-   You must ask the user to find and provide a **direct URL** to a copyright-free or appropriately licensed MP3 file.
+-   Suggest that the user can manually browse sites like `pixabay.com`, `bensound.com`, or `stocktune.com` to find a suitable track.
+-   Once the user provides a URL (e.g., `https://example.com/lofi-track.mp3`), you can proceed.
+
+**2. Download the MP3 File**
+-   Use a shell command to download the file into the project directory.
+-   Example command:
+    ```bash
+    curl -L -o lofi.mp3 "URL_FROM_USER"
+    ```
+
+**3. Integrate into `clock.html`**
+-   The `clock.html` file needs to be modified to include an audio player.
+-   **HTML Changes**:
+    -   Add an `<audio>` element for the lofi track.
+    -   Add a button to control playback.
+    -   Example:
+        ```html
+        <!-- Somewhere in the body -->
+        <audio id="lofi-audio" src="lofi.mp3" loop></audio>
+        <button id="lofi-play-pause">Play Lofi</button>
+        ```
+-   **JavaScript Changes**:
+    -   Add an event listener to the button to toggle play/pause on the `<audio>` element.
+    -   Example:
+        ```javascript
+        const lofiAudio = document.getElementById('lofi-audio');
+        const lofiButton = document.getElementById('lofi-play-pause');
+
+        lofiButton.addEventListener('click', () => {
+          if (lofiAudio.paused) {
+            lofiAudio.play();
+            lofiButton.textContent = 'Pause Lofi';
+          } else {
+            lofiAudio.pause();
+            lofiButton.textContent = 'Play Lofi';
+          }
+        });
+        ```
+-   This new functionality should be integrated carefully with the existing rain sound logic to ensure they don't conflict (e.g., volume controls, UI placement).
