@@ -34,6 +34,10 @@ cp Info.plist "$APP_DIR/Contents/Info.plist"
 /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $BUILD_NUM" "$APP_DIR/Contents/Info.plist"
 /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $VERSION" "$APP_DIR/Contents/Info.plist"
 
+if [[ -f "$ROOT_DIR/AppIcon.icns" ]]; then
+  cp "$ROOT_DIR/AppIcon.icns" "$RES_DIR/AppIcon.icns"
+fi
+
 cp clock.html "$WEB_DIR/clock.html"
 if [[ -d "$ROOT_DIR/audio" ]]; then
   cp -R "$ROOT_DIR/audio" "$WEB_DIR/audio"
