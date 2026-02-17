@@ -131,13 +131,13 @@
     }
     #updateBtn {
       position: fixed;
-      top: 68px;
+      bottom: 14px;
       left: 14px;
       z-index: 20;
     }
     #themeBtn {
       position: fixed;
-      top: 112px;
+      bottom: 58px;
       left: 14px;
       z-index: 20;
     }
@@ -385,8 +385,6 @@
     }
 
     function triggerUpdate() {
-      const ok = confirm('Update herunterladen und installieren? Die App wird danach neu gestartet.');
-      if (!ok) return;
       updatePending = true;
       setUpdateButtonBusy(true);
       const sent = sendToSwift('update');

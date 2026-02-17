@@ -312,7 +312,7 @@ final class AppUpdater {
             let release = try JSONDecoder().decode(Release.self, from: data)
             let currentVersion = (Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String) ?? "0"
             let latestVersion = release.tag_name.hasPrefix("v") ? String(release.tag_name.dropFirst()) : release.tag_name
-            if latestVersion == currentVersion {
+            if compareVersions(latestVersion, currentVersion) <= 0 {
                 log("Updater: already up-to-date (\(currentVersion))")
                 status("Clock Update", "Already up-to-date (\(currentVersion)).")
                 return
@@ -396,6 +396,23 @@ final class AppUpdater {
         xattr -dr com.apple.quarantine "$TARGET_APP" 2>/dev/null || true
         open "$TARGET_APP"
         """
+    }
+
+    private func compareVersions(_ lhs: String, _ rhs: String) -> Int {
+        func parse(_ s: String) -> [Int] {
+            let cleaned = s.replacingOccurrences(of: "[^0-9.]", with: "", options: .regularExpression)
+            if cleaned.isEmpty { return [0] }
+            return cleaned.split(separator: ".").map { Int($0) ?? 0 }
+        }
+        let a = parse(lhs)
+        let b = parse(rhs)
+        let n = max(a.count, b.count)
+        for i in 0..<n {
+            let av = i < a.count ? a[i] : 0
+            let bv = i < b.count ? b[i] : 0
+            if av != bv { return av < bv ? -1 : 1 }
+        }
+        return 0
     }
 }
 
