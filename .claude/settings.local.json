@@ -1,0 +1,42 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(open:*)",
+      "Bash(chmod:*)",
+      "Bash(python3:*)",
+      "Bash(swiftc:*)",
+      "Bash(shortcuts list:*)",
+      "Bash(sw_vers:*)",
+      "Bash(defaults read:*)",
+      "Bash(defaults:*)",
+      "Bash(pluginkit:*)",
+      "Bash(shortcuts run:*)",
+      "Bash(nm:*)",
+      "Bash(# Check if there''s an XPC service for Focus ls /System/Library/XPCServices/)",
+      "Bash(# Check the Focus status item in the menu bar - any writable plist defaults read com.apple.focus)",
+      "Bash(# Look at what strings are in the FocusEngine framework strings /System/Library/PrivateFrameworks/FocusEngine.framework/Versions/A/FocusEngine)",
+      "Bash(# Read the DoNotDisturb plist defaults read ~/Library/Preferences/com.apple.donotdisturbd.plist)",
+      "Bash(# Check what process manages Focus/DND launchctl list)",
+      "Bash(# Check for focusctl in more locations find /usr /usr/local /opt /System/Library/CoreServices -name \"\"*focus*\"\" -o -name \"\"*dnd*\"\")",
+      "Bash(# Check what the donotdisturbd binary is and if it has any useful command line find /System -name \"\"donotdisturbd\"\")",
+      "Bash(# Look at what FocusEngine exports via strings \\(faster path\\) strings /System/Library/PrivateFrameworks/FocusEngine.framework/Versions/A/FocusEngine)",
+      "Bash(# See if there''s a focusctl or any focus-related tool available on PATH which focusctl ; which dndctl ; which focusd # Also check if ''shortcuts'' can trigger DND directly shortcuts list --show-identifiers)",
+      "Bash(# Try nm on the DoNotDisturbKit to find class/method names nm /System/Library/PrivateFrameworks/DoNotDisturbKit.framework/Versions/A/DoNotDisturbKit)",
+      "Bash(# Try to get Objective-C class names from DoNotDisturbKit using otool otool -ov /System/Library/PrivateFrameworks/DoNotDisturbKit.framework/Versions/A/DoNotDisturbKit)",
+      "Bash(# Check the DoNotDisturbServer strings more specifically strings /System/Library/PrivateFrameworks/DoNotDisturbServer.framework/Versions/A/DoNotDisturbServer)",
+      "Bash(# What does the \"\"Pause einlegen\"\" shortcut do? Check its plist find ~/Library -name \"\"*.shortcut\"\" -o -name \"\"*.wflow\"\")",
+      "Bash(# Use otool to get class names and method names from DoNotDisturbKit otool -ov /System/Library/PrivateFrameworks/DoNotDisturbKit.framework/Versions/A/DoNotDisturbKit)",
+      "Bash(# Check DoNotDisturb.framework \\(not DoNotDisturbKit\\) - this may be the client-facing one ls /System/Library/PrivateFrameworks/DoNotDisturb.framework/Versions/A/DoNotDisturb && \\\\ otool -ov /System/Library/PrivateFrameworks/DoNotDisturb.framework/Versions/A/DoNotDisturb)",
+      "Bash(# These frameworks have no actual binaries - they''re stub frameworks # The DoNotDisturb.intentdefinition file might tell us about Siri intents plutil -p /System/Library/PrivateFrameworks/DoNotDisturb.framework/PlugIns/DoNotDisturbIntents.appex/Contents/Resources/Base.lproj/DoNotDisturb.intentdefinition)",
+      "Bash(# Check if there''s a Focus intent definition anywhere find /System/Library/PrivateFrameworks/Focus.framework -type f find /System/Library/PrivateFrameworks/FocusEngine.framework -type f)",
+      "Bash(plutil:*)",
+      "Bash(# Check if there''s a way to invoke shortcuts intents via osascript # Also check for the \"\"Fokus\"\" Shortcut action that might toggle DND # Look for the Shortcuts built-in actions related to Focus find /System/Library -name \"\"*.intentdefinition\"\" | xargs grep -l \"\"Focus\\\\|DoNotDisturb\"\")",
+      "Bash(# Check the Shortcuts app for built-in Focus actions find /System/Applications -name \"\"Shortcuts.app\"\" -type d)",
+      "Bash(echo:*)",
+      "Bash(osascript:*)",
+      "Bash(log show:*)",
+      "Bash(/usr/bin/log show:*)",
+      "Bash(npm install:*)"
+    ]
+  }
+}

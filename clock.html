@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Clock</title>
+  <style>
+    body {
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      background: #1a1a2e;
+      font-family: 'Courier New', monospace;
+    }
+    .clock {
+      color: #e0e0e0;
+      font-size: 6rem;
+      letter-spacing: 0.05em;
+      transition: color 0.4s;
+    }
+    .clock.countdown { color: #66ddaa; }
+    .quote {
+      color: #8888aa;
+      font-size: 1.2rem;
+      max-width: 600px;
+      text-align: center;
+      margin-top: 2rem;
+      line-height: 1.6;
+      transition: opacity 0.5s;
+    }
+    .timer-controls {
+      margin-top: 2rem;
+      display: flex;
+      gap: 0.75rem;
+      align-items: center;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .timer-controls.hidden { display: none; }
+    .timer-btn {
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.15);
+      color: #c0c0d0;
+      font-family: 'Courier New', monospace;
+      font-size: 0.95rem;
+      padding: 0.5rem 1.2rem;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background 0.2s, border-color 0.2s;
+    }
+    .timer-btn:hover {
+      background: rgba(255,255,255,0.15);
+      border-color: rgba(255,255,255,0.3);
+    }
+    .timer-input {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.15);
+      color: #c0c0d0;
+      font-family: 'Courier New', monospace;
+      font-size: 0.95rem;
+      padding: 0.5rem 0.6rem;
+      border-radius: 6px;
+      width: 60px;
+      text-align: center;
+      outline: none;
+    }
+    .timer-input::placeholder { color: #555566; }
+    .timer-input:focus { border-color: rgba(255,255,255,0.35); }
+    .cancel-btn {
+      background: none;
+      border: none;
+      color: #665566;
+      font-family: 'Courier New', monospace;
+      font-size: 0.85rem;
+      cursor: pointer;
+      margin-top: 1.5rem;
+      padding: 0.3rem 0.8rem;
+      transition: color 0.2s;
+    }
+    .cancel-btn:hover { color: #aa6666; }
+    .cancel-btn.hidden { display: none; }
+  </style>
+</head>
+<body>
+  <div class="clock" id="clock"></div>
+  <div class="quote" id="quote"></div>
+  <div class="timer-controls" id="timerControls">
+    <button class="timer-btn" onclick="startTimer(25)">25m</button>
+    <button class="timer-btn" onclick="startTimer(30)">30m</button>
+    <button class="timer-btn" onclick="startTimer(45)">45m</button>
+    <button class="timer-btn" onclick="startTimer(60)">60m</button>
+    <input class="timer-input" id="customMin" type="number" min="1" max="240" placeholder="min"
+           onkeydown="if(event.key==='Enter'){startTimer(parseInt(this.value))}">
+  </div>
+  <button class="cancel-btn hidden" id="cancelBtn" onclick="cancelTimer()">[ abbrechen ]</button>
+  <script>
+    const quotes = [
+      "The only way to do great work is to love what you do. — Steve Jobs",
+      "It does not matter how slowly you go as long as you do not stop. — Confucius",
+      "Believe you can and you're halfway there. — Theodore Roosevelt",
+      "Act as if what you do makes a difference. It does. — William James",
+      "What you get by achieving your goals is not as important as what you become by achieving your goals. — Zig Ziglar",
+      "Start where you are. Use what you have. Do what you can. — Arthur Ashe",
+      "Everything you've ever wanted is on the other side of fear. — George Addair",
+      "The future belongs to those who believe in the beauty of their dreams. — Eleanor Roosevelt",
+      "Hard times don't create heroes. It is during the hard times when the hero within us is revealed. — Bob Riley",
+      "Don't watch the clock; do what it does. Keep going. — Sam Levenson",
+      "You are never too old to set another goal or to dream a new dream. — C.S. Lewis",
+      "Success is not final, failure is not fatal: it is the courage to continue that counts. — Winston Churchill",
+      "In the middle of every difficulty lies opportunity. — Albert Einstein",
+      "The best time to plant a tree was 20 years ago. The second best time is now. — Chinese Proverb",
+      "Your limitation — it's only your imagination.",
+      "Push yourself, because no one else is going to do it for you.",
+      "Great things never come from comfort zones.",
+      "Dream it. Wish it. Do it.",
+      "The harder you work for something, the greater you'll feel when you achieve it.",
+      "Do something today that your future self will thank you for."
+    ];
+
+    let lastIndex = -1;
+    let timerInterval = null;
+    let timerEndTime = null;
+    let rainCtx = null;
+    let rainNodes = [];
+
+    function showQuote() {
+      let index;
+      do {
+        index = Math.floor(Math.random() * quotes.length);
+      } while (index === lastIndex);
+      lastIndex = index;
+      const el = document.getElementById('quote');
+      el.style.opacity = 0;
+      setTimeout(() => {
+        el.textContent = quotes[index];
+        el.style.opacity = 1;
+      }, 500);
+    }
+
+    function updateClock() {
+      if (timerInterval) return;
+      document.getElementById('clock').textContent =
+        new Date().toLocaleTimeString();
+    }
+
+    // --- Rain Sound ---
+    let dropInterval = null;
+
+    function startRain() {
+      rainCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+      // Brown noise via filtered white noise (rain-like)
+      const bufferSize = 2 * rainCtx.sampleRate;
+      const buffer = rainCtx.createBuffer(2, bufferSize, rainCtx.sampleRate);
+      for (let ch = 0; ch < 2; ch++) {
+        const data = buffer.getChannelData(ch);
+        let lastOut = 0;
+        for (let i = 0; i < bufferSize; i++) {
+          const white = Math.random() * 2 - 1;
+          lastOut = (lastOut + (0.02 * white)) / 1.02;
+          data[i] = lastOut * 1.5;
+        }
+      }
+      const noiseSource = rainCtx.createBufferSource();
+      noiseSource.buffer = buffer;
+      noiseSource.loop = true;
+
+      // Bandpass filter — lower frequency for softer rain
+      const bandpass = rainCtx.createBiquadFilter();
+      bandpass.type = 'bandpass';
+      bandpass.frequency.value = 600;
+      bandpass.Q.value = 0.5;
+
+      // Highpass to remove rumble
+      const highpass = rainCtx.createBiquadFilter();
+      highpass.type = 'highpass';
+      highpass.frequency.value = 200;
+
+      // LFO for amplitude modulation (rain wave effect)
+      const lfo = rainCtx.createOscillator();
+      lfo.type = 'sine';
+      lfo.frequency.value = 0.15; // slow wave ~7 seconds
+      const lfoGain = rainCtx.createGain();
+      lfoGain.gain.value = 0.04; // modulation depth
+      lfo.connect(lfoGain);
+
+      const gain = rainCtx.createGain();
+      gain.gain.value = 0;
+      gain.gain.linearRampToValueAtTime(0.15, rainCtx.currentTime + 2);
+      lfoGain.connect(gain.gain); // modulate the main gain
+
+      noiseSource.connect(bandpass);
+      bandpass.connect(highpass);
+      highpass.connect(gain);
+      gain.connect(rainCtx.destination);
+      noiseSource.start();
+      lfo.start();
+
+      rainNodes = [noiseSource, bandpass, highpass, gain, lfo, lfoGain];
+
+      // Second layer: higher pitched "patter"
+      const patterBuffer = rainCtx.createBuffer(2, bufferSize, rainCtx.sampleRate);
+      for (let ch = 0; ch < 2; ch++) {
+        const data = patterBuffer.getChannelData(ch);
+        for (let i = 0; i < bufferSize; i++) {
+          data[i] = (Math.random() * 2 - 1) * (Math.random() < 0.3 ? 1 : 0.1);
+        }
+      }
+      const patterSource = rainCtx.createBufferSource();
+      patterSource.buffer = patterBuffer;
+      patterSource.loop = true;
+
+      const patterFilter = rainCtx.createBiquadFilter();
+      patterFilter.type = 'bandpass';
+      patterFilter.frequency.value = 4000;
+      patterFilter.Q.value = 1.0;
+
+      const patterGain = rainCtx.createGain();
+      patterGain.gain.value = 0;
+      patterGain.gain.linearRampToValueAtTime(0.04, rainCtx.currentTime + 2);
+
+      patterSource.connect(patterFilter);
+      patterFilter.connect(patterGain);
+      patterGain.connect(rainCtx.destination);
+      patterSource.start();
+
+      rainNodes.push(patterSource, patterFilter, patterGain);
+
+      // Third layer: sporadic raindrop sounds
+      dropInterval = setInterval(() => {
+        if (!rainCtx) return;
+        const count = Math.floor(Math.random() * 3) + 1;
+        for (let d = 0; d < count; d++) {
+          setTimeout(() => playDrop(), Math.random() * 400);
+        }
+      }, 600 + Math.random() * 800);
+    }
+
+    function playDrop() {
+      if (!rainCtx) return;
+      const osc = rainCtx.createOscillator();
+      const g = rainCtx.createGain();
+      const freq = 2000 + Math.random() * 4000;
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, rainCtx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(freq * 0.4, rainCtx.currentTime + 0.06);
+      g.gain.setValueAtTime(0.02 + Math.random() * 0.02, rainCtx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.001, rainCtx.currentTime + 0.06);
+      osc.connect(g);
+      g.connect(rainCtx.destination);
+      osc.start();
+      osc.stop(rainCtx.currentTime + 0.07);
+    }
+
+    function stopRain() {
+      if (!rainCtx) return;
+      if (dropInterval) { clearInterval(dropInterval); dropInterval = null; }
+      // Fade out main gain (index 3) and patter gain (index 8)
+      const gain = rainNodes[3];
+      const patterGain = rainNodes[8];
+      const now = rainCtx.currentTime;
+      gain.gain.cancelScheduledValues(now);
+      gain.gain.linearRampToValueAtTime(0, now + 1.5);
+      patterGain.gain.cancelScheduledValues(now);
+      patterGain.gain.linearRampToValueAtTime(0, now + 1.5);
+      setTimeout(() => {
+        rainNodes.forEach(n => { try { n.stop(); } catch(e) {} });
+        rainCtx.close();
+        rainCtx = null;
+        rainNodes = [];
+      }, 2000);
+    }
+
+    // --- Timer ---
+    function startTimer(minutes) {
+      if (!minutes || minutes < 1) return;
+      timerEndTime = Date.now() + minutes * 60 * 1000;
+      const clockEl = document.getElementById('clock');
+      clockEl.classList.add('countdown');
+      document.getElementById('timerControls').classList.add('hidden');
+      document.getElementById('cancelBtn').classList.remove('hidden');
+
+      sendToSwift('start');
+      startRain();
+
+      timerInterval = setInterval(tickTimer, 200);
+      tickTimer();
+    }
+
+    function tickTimer() {
+      const remaining = timerEndTime - Date.now();
+      if (remaining <= 0) {
+        endTimer();
+        return;
+      }
+      const totalSec = Math.ceil(remaining / 1000);
+      const m = Math.floor(totalSec / 60);
+      const s = totalSec % 60;
+      document.getElementById('clock').textContent =
+        String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+    }
+
+    function endTimer() {
+      clearInterval(timerInterval);
+      timerInterval = null;
+      timerEndTime = null;
+      document.getElementById('clock').classList.remove('countdown');
+      document.getElementById('timerControls').classList.remove('hidden');
+      document.getElementById('cancelBtn').classList.add('hidden');
+      updateClock();
+
+      sendToSwift('stop');
+      stopRain();
+      playAlarm();
+      showNotification();
+    }
+
+    function cancelTimer() {
+      clearInterval(timerInterval);
+      timerInterval = null;
+      timerEndTime = null;
+      document.getElementById('clock').classList.remove('countdown');
+      document.getElementById('timerControls').classList.remove('hidden');
+      document.getElementById('cancelBtn').classList.add('hidden');
+      updateClock();
+
+      sendToSwift('stop');
+      stopRain();
+    }
+
+    function sendToSwift(action) {
+      try {
+        window.webkit.messageHandlers.focus.postMessage({ action: action });
+      } catch (e) {}
+    }
+
+    function playAlarm() {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const freqs = [880, 0, 880, 0, 880, 0, 1100, 0, 880];
+      const step = 0.15;
+      freqs.forEach((freq, i) => {
+        if (freq === 0) return;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.value = freq;
+        gain.gain.setValueAtTime(0.3, ctx.currentTime + i * step);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i * step + step * 0.9);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(ctx.currentTime + i * step);
+        osc.stop(ctx.currentTime + i * step + step);
+      });
+    }
+
+    function showNotification() {
+      if (!('Notification' in window)) return;
+      if (Notification.permission === 'granted') {
+        new Notification('Focus Timer', { body: 'Zeit ist um! Gute Arbeit.' });
+      } else if (Notification.permission !== 'denied') {
+        Notification.requestPermission().then(p => {
+          if (p === 'granted')
+            new Notification('Focus Timer', { body: 'Zeit ist um! Gute Arbeit.' });
+        });
+      }
+    }
+
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+
+    updateClock();
+    setInterval(updateClock, 1000);
+    showQuote();
+    setInterval(showQuote, 5 * 60 * 1000);
+  </script>
+</body>
+</html>
