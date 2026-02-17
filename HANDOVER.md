@@ -106,7 +106,7 @@ The core task is to obtain a direct link to an MP3 file and then integrate it in
 -   Use a shell command to download the file into the project directory.
 -   Example command:
     ```bash
-    curl -L -o lofi.mp3 "URL_FROM_USER"
+    curl -L -o audio/lofi/track01.mp3 "URL_FROM_USER"
     ```
 
 **3. Integrate into `clock.html`**
@@ -117,7 +117,7 @@ The core task is to obtain a direct link to an MP3 file and then integrate it in
     -   Example:
         ```html
         <!-- Somewhere in the body -->
-        <audio id="lofi-audio" src="lofi.mp3" loop></audio>
+        <audio id="lofi-audio" src="audio/lofi/track01.mp3" loop></audio>
         <button id="lofi-play-pause">Play Lofi</button>
         ```
 -   **JavaScript Changes**:
@@ -146,10 +146,12 @@ The core task is to obtain a direct link to an MP3 file and then integrate it in
 ### Erledigt
 - **LoFi-Funktion ist implementiert** in `clock.html`:
   - Sound-Modus-Button hinzugefügt: `Sound: Rain` / `Sound: LoFi`
-  - `<audio id="lofiAudio" src="lofi.mp3" loop preload="auto"></audio>`
+  - LoFi-Playlist mit 10 lokalen Tracks (`audio/lofi/track01.mp3` ... `track10.mp3`)
+  - Playlist-UI mit `Prev` / `Play-Pause` / `Next`
+  - Track-Anzeige + klickbare Progressbar (`current / duration`)
   - Gemeinsame Ambience-Logik: `startAmbience()` / `stopAmbience()`
   - Fallback auf Rain, falls LoFi nicht abgespielt werden kann
-- **`lofi.mp3` wurde heruntergeladen** und liegt im Repo-Root.
+- **Einzeldatei `lofi.mp3` ist entfernt** (ersetzt durch Playlist unter `audio/lofi/`).
 - **Toolchain/SDK-Buildproblem gelöst** über Build-Skript:
   - `scripts/build-clockapp.sh`
   - Nutzt lokales Module-Cache-Verzeichnis (`.build/module-cache`)

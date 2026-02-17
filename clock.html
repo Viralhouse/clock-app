@@ -82,6 +82,64 @@
     }
     .cancel-btn:hover { color: #aa6666; }
     .cancel-btn.hidden { display: none; }
+    .playlist {
+      margin-top: 1rem;
+      width: min(620px, 92vw);
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.14);
+      border-radius: 10px;
+      padding: 0.8rem 0.9rem;
+      box-sizing: border-box;
+    }
+    .playlist-title {
+      color: #aab4cf;
+      font-size: 0.85rem;
+      margin-bottom: 0.5rem;
+      letter-spacing: 0.04em;
+    }
+    .playlist-track {
+      color: #dbe3ff;
+      font-size: 0.95rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin-bottom: 0.55rem;
+    }
+    .playlist-controls {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+      margin-bottom: 0.55rem;
+    }
+    .playlist-btn {
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.2);
+      color: #d2d8ea;
+      font-family: 'Courier New', monospace;
+      font-size: 0.82rem;
+      padding: 0.3rem 0.65rem;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .playlist-progress {
+      height: 6px;
+      background: rgba(255,255,255,0.12);
+      border-radius: 999px;
+      cursor: pointer;
+      overflow: hidden;
+    }
+    .playlist-progress-fill {
+      height: 100%;
+      width: 0%;
+      background: #66ddaa;
+      transition: width 0.1s linear;
+    }
+    .playlist-time {
+      margin-top: 0.35rem;
+      color: #9aa6c7;
+      font-size: 0.75rem;
+      text-align: right;
+    }
   </style>
 </head>
 <body>
@@ -97,7 +155,20 @@
            onkeydown="if(event.key==='Enter'){startTimer(parseInt(this.value))}">
   </div>
   <button class="cancel-btn hidden" id="cancelBtn" onclick="cancelTimer()">[ abbrechen ]</button>
-  <audio id="lofiAudio" src="lofi.mp3" loop preload="auto"></audio>
+  <div class="playlist">
+    <div class="playlist-title">LoFi Playlist (10 Tracks)</div>
+    <div class="playlist-track" id="playlistTrackName">-</div>
+    <div class="playlist-controls">
+      <button class="playlist-btn" onclick="prevLofiTrack()">Prev</button>
+      <button class="playlist-btn" id="lofiPlayPauseBtn" onclick="toggleLofiPlayPause()">Play</button>
+      <button class="playlist-btn" onclick="nextLofiTrack()">Next</button>
+    </div>
+    <div class="playlist-progress" id="playlistProgress" onclick="seekLofi(event)">
+      <div class="playlist-progress-fill" id="playlistProgressFill"></div>
+    </div>
+    <div class="playlist-time" id="playlistTime">0:00 / 0:00</div>
+  </div>
+  <audio id="lofiAudio" preload="metadata"></audio>
   <script>
     const quotes = [
       "The only way to do great work is to love what you do. — Steve Jobs",
@@ -129,6 +200,19 @@
     let rainNodes = [];
     let soundMode = 'rain';
     const lofiAudio = document.getElementById('lofiAudio');
+    const lofiTracks = [
+      { name: 'Magenta Metropolis', src: 'audio/lofi/track01.mp3' },
+      { name: 'Lucid Dreaming', src: 'audio/lofi/track02.mp3' },
+      { name: 'Downtown Walk', src: 'audio/lofi/track03.mp3' },
+      { name: 'Hot Pepper', src: 'audio/lofi/track04.mp3' },
+      { name: 'Rain Book And Cup Of Tea', src: 'audio/lofi/track05.mp3' },
+      { name: 'Rooftop', src: 'audio/lofi/track06.mp3' },
+      { name: 'Morning Espresso', src: 'audio/lofi/track07.mp3' },
+      { name: 'Rain Book And Cup Of Tea Loop', src: 'audio/lofi/track08.mp3' },
+      { name: 'Dusk Horizon', src: 'audio/lofi/track09.mp3' },
+      { name: 'Hometown Rain', src: 'audio/lofi/track10.mp3' }
+    ];
+    let currentLofiTrack = 0;
 
     function showQuote() {
       let index;
@@ -156,6 +240,73 @@
         stopAmbience();
         startAmbience();
       }
+    }
+
+    function updateTrackDisplay() {
+      document.getElementById('playlistTrackName').textContent = lofiTracks[currentLofiTrack].name;
+    }
+
+    function updateLofiPlayButton() {
+      document.getElementById('lofiPlayPauseBtn').textContent = lofiAudio.paused ? 'Play' : 'Pause';
+    }
+
+    function formatTime(seconds) {
+      if (!Number.isFinite(seconds) || seconds < 0) return '0:00';
+      const total = Math.floor(seconds);
+      const m = Math.floor(total / 60);
+      const s = total % 60;
+      return `${m}:${String(s).padStart(2, '0')}`;
+    }
+
+    function updateLofiProgress() {
+      const current = lofiAudio.currentTime || 0;
+      const duration = lofiAudio.duration || 0;
+      const ratio = duration > 0 ? (current / duration) * 100 : 0;
+      document.getElementById('playlistProgressFill').style.width = `${ratio}%`;
+      document.getElementById('playlistTime').textContent =
+        `${formatTime(current)} / ${formatTime(duration)}`;
+    }
+
+    function loadLofiTrack(index, autoplay = false) {
+      const length = lofiTracks.length;
+      currentLofiTrack = (index + length) % length;
+      lofiAudio.src = lofiTracks[currentLofiTrack].src;
+      lofiAudio.load();
+      updateTrackDisplay();
+      updateLofiProgress();
+      if (autoplay) {
+        lofiAudio.play().then(updateLofiPlayButton).catch(() => updateLofiPlayButton());
+      } else {
+        updateLofiPlayButton();
+      }
+    }
+
+    function toggleLofiPlayPause() {
+      if (lofiAudio.paused) {
+        lofiAudio.play().then(updateLofiPlayButton).catch(() => updateLofiPlayButton());
+      } else {
+        lofiAudio.pause();
+        updateLofiPlayButton();
+      }
+    }
+
+    function prevLofiTrack() {
+      const shouldPlay = !lofiAudio.paused || (timerInterval && soundMode === 'lofi');
+      loadLofiTrack(currentLofiTrack - 1, shouldPlay);
+    }
+
+    function nextLofiTrack() {
+      const shouldPlay = !lofiAudio.paused || (timerInterval && soundMode === 'lofi');
+      loadLofiTrack(currentLofiTrack + 1, shouldPlay);
+    }
+
+    function seekLofi(event) {
+      if (!lofiAudio.duration) return;
+      const bar = document.getElementById('playlistProgress');
+      const rect = bar.getBoundingClientRect();
+      const ratio = Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width));
+      lofiAudio.currentTime = ratio * lofiAudio.duration;
+      updateLofiProgress();
     }
 
     function updateClock() {
@@ -293,10 +444,10 @@
     }
 
     function startLofi() {
-      lofiAudio.currentTime = 0;
-      lofiAudio.play().catch(() => {
+      lofiAudio.play().then(updateLofiPlayButton).catch(() => {
         soundMode = 'rain';
         updateSoundButton();
+        updateLofiPlayButton();
         startRain();
       });
     }
@@ -304,6 +455,8 @@
     function stopLofi() {
       lofiAudio.pause();
       lofiAudio.currentTime = 0;
+      updateLofiPlayButton();
+      updateLofiProgress();
     }
 
     function startAmbience() {
@@ -418,6 +571,12 @@
     }
 
     updateClock();
+    loadLofiTrack(0, false);
+    lofiAudio.addEventListener('timeupdate', updateLofiProgress);
+    lofiAudio.addEventListener('loadedmetadata', updateLofiProgress);
+    lofiAudio.addEventListener('ended', () => nextLofiTrack());
+    lofiAudio.addEventListener('play', updateLofiPlayButton);
+    lofiAudio.addEventListener('pause', updateLofiPlayButton);
     updateSoundButton();
     setInterval(updateClock, 1000);
     showQuote();
