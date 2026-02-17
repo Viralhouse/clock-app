@@ -95,6 +95,11 @@
       line-height: 1.6;
       transition: opacity 0.5s, border-color 0.25s, box-shadow 0.25s;
     }
+    .quote-next {
+      margin-top: 0.6rem;
+      font-size: 0.8rem;
+      padding: 0.35rem 0.8rem;
+    }
     body.light .quote {
       border-color: rgba(0,82,72,0.5);
       box-shadow:
@@ -268,6 +273,7 @@
 <body>
   <div class="clock" id="clock"></div>
   <div class="quote" id="quote"></div>
+  <button class="timer-btn quote-next" id="nextQuoteBtn" onclick="nextQuote()">Next Quote</button>
   <div class="timer-controls" id="timerControls">
     <button class="timer-btn" onclick="startTimer(15)">15m</button>
     <button class="timer-btn" onclick="startTimer(30)">30m</button>
@@ -316,7 +322,17 @@
       "Great things never come from comfort zones.",
       "Dream it. Wish it. Do it.",
       "The harder you work for something, the greater you'll feel when you achieve it.",
-      "Do something today that your future self will thank you for."
+      "Do something today that your future self will thank you for.",
+      "Discipline is choosing between what you want now and what you want most.",
+      "Focus on being productive, not busy.",
+      "Small progress is still progress.",
+      "Done is better than perfect.",
+      "Consistency beats intensity.",
+      "Work in silence. Let success make the noise.",
+      "One focused hour can change your whole day.",
+      "Stay patient and trust your journey.",
+      "You don't need more time. You need fewer distractions.",
+      "Momentum is built one session at a time."
     ];
 
     let lastIndex = -1;
@@ -357,6 +373,10 @@
         el.textContent = quotes[index];
         el.style.opacity = 1;
       }, 500);
+    }
+
+    function nextQuote() {
+      showQuote();
     }
 
     function updateSoundButton() {
@@ -881,7 +901,7 @@
     updateSoundButton();
     setInterval(updateClock, 1000);
     showQuote();
-    setInterval(showQuote, 5 * 60 * 1000);
+    setInterval(showQuote, 60 * 1000);
   </script>
 </body>
 </html>
