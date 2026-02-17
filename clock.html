@@ -310,6 +310,7 @@
     let currentLofiTrack = 0;
     let shuffledOrder = [];
     let shufflePos = 0;
+    let updatePending = false;
 
     function showQuote() {
       let index;
@@ -386,7 +387,35 @@
     function triggerUpdate() {
       const ok = confirm('Update herunterladen und installieren? Die App wird danach neu gestartet.');
       if (!ok) return;
-      sendToSwift('update');
+      updatePending = true;
+      setUpdateButtonBusy(true);
+      const sent = sendToSwift('update');
+      if (!sent) {
+        updatePending = false;
+        setUpdateButtonBusy(false);
+        alert('Update konnte nicht gestartet werden (Native Bridge nicht verfügbar).');
+        return;
+      }
+      setTimeout(() => {
+        if (!updatePending) return;
+        updatePending = false;
+        setUpdateButtonBusy(false);
+      }, 20000);
+    }
+
+    function setUpdateButtonBusy(busy) {
+      const btn = document.getElementById('updateBtn');
+      if (busy) {
+        btn.textContent = '…';
+        btn.title = 'Checking for updates...';
+        btn.setAttribute('aria-label', 'Checking for updates');
+        btn.disabled = true;
+      } else {
+        btn.textContent = '↻';
+        btn.title = 'Check for updates';
+        btn.setAttribute('aria-label', 'Check for updates');
+        btn.disabled = false;
+      }
     }
 
     function updatePlaylistVisibility() {
@@ -730,13 +759,15 @@
     function sendToSwift(action) {
       try {
         const handler = window?.webkit?.messageHandlers?.focus;
-        if (!handler) return;
+        if (!handler) return false;
         try {
           handler.postMessage({ action: action });
         } catch (_) {
           handler.postMessage(action);
         }
+        return true;
       } catch (e) {}
+      return false;
     }
 
     function notifyFocus(action) {

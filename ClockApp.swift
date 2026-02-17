@@ -33,9 +33,26 @@ class FocusMessageHandler: NSObject, WKScriptMessageHandler {
     }
 
     private func performInAppUpdate() {
+        showUpdateAlert(title: "Clock Update", message: "Checking for updates...")
         DispatchQueue.global(qos: .userInitiated).async { [self] in
-            let updater = AppUpdater(log: log)
+            let updater = AppUpdater(
+                log: log,
+                status: { [weak self] title, message in
+                    self?.showUpdateAlert(title: title, message: message)
+                }
+            )
             updater.run()
+        }
+    }
+
+    private func showUpdateAlert(title: String, message: String) {
+        DispatchQueue.main.async {
+            let alert = NSAlert()
+            alert.alertStyle = .informational
+            alert.messageText = title
+            alert.informativeText = message
+            alert.addButton(withTitle: "OK")
+            alert.runModal()
         }
     }
 
@@ -258,9 +275,14 @@ final class AppUpdater {
     }
 
     private let log: (String) -> Void
+    private let status: (String, String) -> Void
 
-    init(log: @escaping (String) -> Void) {
+    init(
+        log: @escaping (String) -> Void,
+        status: @escaping (String, String) -> Void
+    ) {
         self.log = log
+        self.status = status
     }
 
     func run() {
@@ -288,15 +310,18 @@ final class AppUpdater {
             let latestVersion = release.tag_name.hasPrefix("v") ? String(release.tag_name.dropFirst()) : release.tag_name
             if latestVersion == currentVersion {
                 log("Updater: already up-to-date (\(currentVersion))")
+                status("Clock Update", "Already up-to-date (\(currentVersion)).")
                 return
             }
 
             guard let asset = release.assets.first(where: { $0.name == "Clock.app.zip" }),
                   let assetURL = URL(string: asset.browser_download_url) else {
                 log("Updater: no Clock.app.zip asset in latest release")
+                status("Clock Update", "No installable asset found in latest release.")
                 return
             }
 
+            status("Clock Update", "Downloading version \(latestVersion)...")
             log("Updater: downloading \(asset.browser_download_url)")
             var assetReq = URLRequest(url: assetURL, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 120)
             assetReq.setValue("ClockApp-Updater", forHTTPHeaderField: "User-Agent")
@@ -306,6 +331,7 @@ final class AppUpdater {
             let (zipData, assetResp) = try URLSession.shared.syncRequest(assetReq)
             if let http = assetResp as? HTTPURLResponse, http.statusCode >= 400 {
                 log("Updater: asset download failed with status \(http.statusCode)")
+                status("Clock Update", "Download failed (HTTP \(http.statusCode)).")
                 return
             }
 
@@ -325,12 +351,14 @@ final class AppUpdater {
             proc.arguments = [scriptPath.path, appPath, zipPath.path]
             try proc.run()
             log("Updater: installer launched, quitting app")
+            status("Clock Update", "Installing update now. App will restart.")
 
             DispatchQueue.main.async {
                 NSApp.terminate(nil)
             }
         } catch {
             log("Updater failed: \(error)")
+            status("Clock Update", "Update failed: \(error.localizedDescription)")
         }
     }
 
