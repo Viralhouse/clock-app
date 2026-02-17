@@ -92,10 +92,12 @@
     <button class="timer-btn" onclick="startTimer(30)">30m</button>
     <button class="timer-btn" onclick="startTimer(45)">45m</button>
     <button class="timer-btn" onclick="startTimer(60)">60m</button>
+    <button class="timer-btn" id="soundModeBtn" onclick="toggleSoundMode()">Sound: Rain</button>
     <input class="timer-input" id="customMin" type="number" min="1" max="240" placeholder="min"
            onkeydown="if(event.key==='Enter'){startTimer(parseInt(this.value))}">
   </div>
   <button class="cancel-btn hidden" id="cancelBtn" onclick="cancelTimer()">[ abbrechen ]</button>
+  <audio id="lofiAudio" src="lofi.mp3" loop preload="auto"></audio>
   <script>
     const quotes = [
       "The only way to do great work is to love what you do. — Steve Jobs",
@@ -125,6 +127,8 @@
     let timerEndTime = null;
     let rainCtx = null;
     let rainNodes = [];
+    let soundMode = 'rain';
+    const lofiAudio = document.getElementById('lofiAudio');
 
     function showQuote() {
       let index;
@@ -138,6 +142,20 @@
         el.textContent = quotes[index];
         el.style.opacity = 1;
       }, 500);
+    }
+
+    function updateSoundButton() {
+      const btn = document.getElementById('soundModeBtn');
+      btn.textContent = soundMode === 'rain' ? 'Sound: Rain' : 'Sound: LoFi';
+    }
+
+    function toggleSoundMode() {
+      soundMode = soundMode === 'rain' ? 'lofi' : 'rain';
+      updateSoundButton();
+      if (timerInterval) {
+        stopAmbience();
+        startAmbience();
+      }
     }
 
     function updateClock() {
@@ -274,6 +292,33 @@
       }, 2000);
     }
 
+    function startLofi() {
+      lofiAudio.currentTime = 0;
+      lofiAudio.play().catch(() => {
+        soundMode = 'rain';
+        updateSoundButton();
+        startRain();
+      });
+    }
+
+    function stopLofi() {
+      lofiAudio.pause();
+      lofiAudio.currentTime = 0;
+    }
+
+    function startAmbience() {
+      if (soundMode === 'lofi') {
+        startLofi();
+      } else {
+        startRain();
+      }
+    }
+
+    function stopAmbience() {
+      stopRain();
+      stopLofi();
+    }
+
     // --- Timer ---
     function startTimer(minutes) {
       if (!minutes || minutes < 1) return;
@@ -284,7 +329,7 @@
       document.getElementById('cancelBtn').classList.remove('hidden');
 
       sendToSwift('start');
-      startRain();
+      startAmbience();
 
       timerInterval = setInterval(tickTimer, 200);
       tickTimer();
@@ -313,7 +358,7 @@
       updateClock();
 
       sendToSwift('stop');
-      stopRain();
+      stopAmbience();
       playAlarm();
       showNotification();
     }
@@ -328,7 +373,7 @@
       updateClock();
 
       sendToSwift('stop');
-      stopRain();
+      stopAmbience();
     }
 
     function sendToSwift(action) {
@@ -373,6 +418,7 @@
     }
 
     updateClock();
+    updateSoundButton();
     setInterval(updateClock, 1000);
     showQuote();
     setInterval(showQuote, 5 * 60 * 1000);

@@ -138,3 +138,40 @@ The core task is to obtain a direct link to an MP3 file and then integrate it in
         });
         ```
 -   This new functionality should be integrated carefully with the existing rain sound logic to ensure they don't conflict (e.g., volume controls, UI placement).
+
+---
+
+## Update 2026-02-17 (Current State)
+
+### Erledigt
+- **LoFi-Funktion ist implementiert** in `clock.html`:
+  - Sound-Modus-Button hinzugefügt: `Sound: Rain` / `Sound: LoFi`
+  - `<audio id="lofiAudio" src="lofi.mp3" loop preload="auto"></audio>`
+  - Gemeinsame Ambience-Logik: `startAmbience()` / `stopAmbience()`
+  - Fallback auf Rain, falls LoFi nicht abgespielt werden kann
+- **`lofi.mp3` wurde heruntergeladen** und liegt im Repo-Root.
+- **Toolchain/SDK-Buildproblem gelöst** über Build-Skript:
+  - `scripts/build-clockapp.sh`
+  - Nutzt lokales Module-Cache-Verzeichnis (`.build/module-cache`)
+  - Pinnt auf `MacOSX15.5.sdk` (falls vorhanden), sonst `xcrun --show-sdk-path`
+- **Clock.app wurde aktualisiert und neu signiert**:
+  - Binary nach `~/Applications/Clock.app/Contents/MacOS/ClockApp` kopiert
+  - `codesign --force --deep --sign - ~/Applications/Clock.app`
+- **GitHub-Verbindung eingerichtet**:
+  - Remote: `git@github.com:Viralhouse/clock-app.git`
+  - Repo wurde auf **private** umgestellt.
+
+### Build & Deploy (funktionierender Ablauf)
+```bash
+cd /Users/vincentjutte/claudetest.md
+./scripts/build-clockapp.sh
+cp /tmp/ClockApp "/Users/vincentjutte/Applications/Clock.app/Contents/MacOS/ClockApp"
+codesign --force --deep --sign - "/Users/vincentjutte/Applications/Clock.app"
+```
+
+### Wichtiger Hinweis (offen)
+- Die DND-Automation aus der `.app` kann weiterhin an macOS-Automation-Rechten hängen (`System Events`, Fehler `-1743`), falls die Berechtigung nicht angezeigt/erteilt wurde.
+- Falls nötig:
+  1. `NSAppleEventsUsageDescription` in `Clock.app/Contents/Info.plist` sicherstellen
+  2. App erneut signieren
+  3. App neu starten und Automation-Dialog erlauben
