@@ -243,6 +243,8 @@
       { name: 'Hometown Rain', src: 'audio/lofi/track10.mp3' }
     ];
     let currentLofiTrack = 0;
+    let shuffledOrder = [];
+    let shufflePos = 0;
 
     function showQuote() {
       let index;
@@ -334,9 +336,37 @@
         `${formatTime(current)} / ${formatTime(duration)}`;
     }
 
-    function loadLofiTrack(index, autoplay = false) {
-      const length = lofiTracks.length;
-      currentLofiTrack = (index + length) % length;
+    function createShuffledOrder() {
+      const order = Array.from({ length: lofiTracks.length }, (_, i) => i);
+      for (let i = order.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [order[i], order[j]] = [order[j], order[i]];
+      }
+      return order;
+    }
+
+    function initShuffle(randomStart = true) {
+      shuffledOrder = createShuffledOrder();
+      shufflePos = randomStart ? Math.floor(Math.random() * shuffledOrder.length) : 0;
+      currentLofiTrack = shuffledOrder[shufflePos];
+    }
+
+    function reshuffleForNext() {
+      const previousTrack = currentLofiTrack;
+      shuffledOrder = createShuffledOrder();
+      if (shuffledOrder.length > 1 && shuffledOrder[0] === previousTrack) {
+        const swapIdx = 1 + Math.floor(Math.random() * (shuffledOrder.length - 1));
+        [shuffledOrder[0], shuffledOrder[swapIdx]] = [shuffledOrder[swapIdx], shuffledOrder[0]];
+      }
+      shufflePos = 0;
+      currentLofiTrack = shuffledOrder[shufflePos];
+    }
+
+    function loadLofiTrack(position, autoplay = false) {
+      if (!shuffledOrder.length) initShuffle(true);
+      const length = shuffledOrder.length;
+      shufflePos = ((position % length) + length) % length;
+      currentLofiTrack = shuffledOrder[shufflePos];
       lofiAudio.src = lofiTracks[currentLofiTrack].src;
       lofiAudio.load();
       updateTrackDisplay();
@@ -359,12 +389,19 @@
 
     function prevLofiTrack() {
       const shouldPlay = !lofiAudio.paused || (timerInterval && soundMode === 'lofi');
-      loadLofiTrack(currentLofiTrack - 1, shouldPlay);
+      if (!shuffledOrder.length) initShuffle(true);
+      loadLofiTrack(shufflePos - 1, shouldPlay);
     }
 
     function nextLofiTrack() {
       const shouldPlay = !lofiAudio.paused || (timerInterval && soundMode === 'lofi');
-      loadLofiTrack(currentLofiTrack + 1, shouldPlay);
+      if (!shuffledOrder.length) initShuffle(true);
+      if (shufflePos >= shuffledOrder.length - 1) {
+        reshuffleForNext();
+        loadLofiTrack(shufflePos, shouldPlay);
+      } else {
+        loadLofiTrack(shufflePos + 1, shouldPlay);
+      }
     }
 
     function seekLofi(event) {
@@ -661,7 +698,8 @@
     }
 
     updateClock();
-    loadLofiTrack(0, false);
+    initShuffle(true);
+    loadLofiTrack(shufflePos, false);
     updateMuteButton();
     lofiAudio.addEventListener('timeupdate', updateLofiProgress);
     lofiAudio.addEventListener('loadedmetadata', updateLofiProgress);
