@@ -511,6 +511,9 @@ final class AppUpdater {
         ditto -x -k "$ZIP_PATH" "$TMP_DIR"
         NEW_APP="$TMP_DIR/Clock.app"
         if [[ ! -d "$NEW_APP" ]]; then
+          NEW_APP="$(find "$TMP_DIR" -maxdepth 4 -type d -name "Clock.app" | head -n 1 || true)"
+        fi
+        if [[ ! -d "$NEW_APP" ]]; then
           echo "Updater: Clock.app not found in archive" >&2
           exit 1
         fi
