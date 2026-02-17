@@ -403,6 +403,7 @@
     }
 
     function triggerUpdate() {
+      if (updatePending) return;
       updatePending = true;
       setUpdateButtonBusy(true);
       const sent = sendToSwift('update');
@@ -410,21 +411,41 @@
         updatePending = false;
         setUpdateButtonBusy(false);
         alert('Update konnte nicht gestartet werden (Native Bridge nicht verfügbar).');
-        return;
       }
-      setTimeout(() => {
-        if (!updatePending) return;
-        updatePending = false;
-        setUpdateButtonBusy(false);
-      }, 20000);
     }
 
-    function setUpdateButtonBusy(busy) {
+    function handleNativeUpdateState(payload) {
+      if (!payload || typeof payload !== 'object') return;
+      const state = payload.state || '';
+      const message = payload.message || '';
+
+      if (state === 'started' || state === 'progress' || state === 'installing' || state === 'already_running') {
+        updatePending = true;
+        setUpdateButtonBusy(true, message || 'Checking for updates...');
+        return;
+      }
+
+      if (state === 'error') {
+        updatePending = false;
+        setUpdateButtonBusy(false);
+        if (message) alert(message);
+        return;
+      }
+
+      if (state === 'finished') {
+        updatePending = false;
+        setUpdateButtonBusy(false);
+        return;
+      }
+    }
+
+    function setUpdateButtonBusy(busy, statusText = '') {
       const btn = document.getElementById('updateBtn');
       if (busy) {
         btn.textContent = '…';
-        btn.title = 'Checking for updates...';
-        btn.setAttribute('aria-label', 'Checking for updates');
+        const label = statusText || 'Checking for updates...';
+        btn.title = label;
+        btn.setAttribute('aria-label', label);
         btn.disabled = true;
       } else {
         btn.textContent = '↻';
@@ -841,6 +862,7 @@
     lofiAudio.addEventListener('ended', () => nextLofiTrack());
     lofiAudio.addEventListener('play', updateLofiPlayButton);
     lofiAudio.addEventListener('pause', updateLofiPlayButton);
+    window.handleNativeUpdateState = handleNativeUpdateState;
     updateSoundButton();
     setInterval(updateClock, 1000);
     showQuote();

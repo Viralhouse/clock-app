@@ -3,6 +3,9 @@ import WebKit
 
 class FocusMessageHandler: NSObject, WKScriptMessageHandler {
     private let debugLogPath = "/tmp/clock_debug.log"
+    private let updateStateQueue = DispatchQueue(label: "clock.update.state")
+    private var isUpdateInProgress = false
+    weak var webView: WKWebView?
 
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
         let action: String?
@@ -37,15 +40,61 @@ class FocusMessageHandler: NSObject, WKScriptMessageHandler {
     }
 
     private func performInAppUpdate() {
-        showUpdateAlert(title: "Clock Update", message: "Checking for updates...")
+        guard beginUpdateIfPossible() else {
+            postUpdateState("already_running", message: "Update is already running...")
+            return
+        }
+        postUpdateState("started", message: "Checking for updates...")
         DispatchQueue.global(qos: .userInitiated).async { [self] in
             let updater = AppUpdater(
                 log: log,
                 status: { [weak self] title, message in
+                    if message.contains("Installing update") {
+                        self?.postUpdateState("installing", message: message)
+                    } else if message.contains("failed") {
+                        self?.postUpdateState("error", message: message)
+                    } else if message.contains("Already up-to-date") {
+                        self?.postUpdateState("finished", message: message)
+                    }
                     self?.showUpdateAlert(title: title, message: message)
+                },
+                progress: { [weak self] message in
+                    self?.postUpdateState("progress", message: message)
                 }
             )
             updater.run()
+            endUpdate()
+            postUpdateState("finished", message: "")
+        }
+    }
+
+    private func beginUpdateIfPossible() -> Bool {
+        updateStateQueue.sync {
+            if isUpdateInProgress {
+                return false
+            }
+            isUpdateInProgress = true
+            return true
+        }
+    }
+
+    private func endUpdate() {
+        updateStateQueue.sync {
+            isUpdateInProgress = false
+        }
+    }
+
+    private func postUpdateState(_ state: String, message: String) {
+        DispatchQueue.main.async { [weak self] in
+            guard let webView = self?.webView else { return }
+            let payload: [String: String] = [
+                "state": state,
+                "message": message
+            ]
+            guard let data = try? JSONSerialization.data(withJSONObject: payload),
+                  let json = String(data: data, encoding: .utf8) else { return }
+            let js = "window.handleNativeUpdateState && window.handleNativeUpdateState(\(json));"
+            webView.evaluateJavaScript(js, completionHandler: nil)
         }
     }
 
@@ -280,13 +329,16 @@ final class AppUpdater {
 
     private let log: (String) -> Void
     private let status: (String, String) -> Void
+    private let progress: (String) -> Void
 
     init(
         log: @escaping (String) -> Void,
-        status: @escaping (String, String) -> Void
+        status: @escaping (String, String) -> Void,
+        progress: @escaping (String) -> Void = { _ in }
     ) {
         self.log = log
         self.status = status
+        self.progress = progress
     }
 
     func run() {
@@ -327,12 +379,12 @@ final class AppUpdater {
 
             status("Clock Update", "Downloading version \(latestVersion)...")
             log("Updater: downloading \(asset.browser_download_url)")
-            var assetReq = URLRequest(url: assetURL, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 120)
+            var assetReq = URLRequest(url: assetURL, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 900)
             assetReq.setValue("ClockApp-Updater", forHTTPHeaderField: "User-Agent")
             if let token = ProcessInfo.processInfo.environment["GITHUB_TOKEN"], !token.isEmpty {
                 assetReq.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
             }
-            let (zipData, assetResp) = try URLSession.shared.syncRequest(assetReq)
+            let (zipTempURL, assetResp) = try downloadRequestWithProgress(assetReq)
             if let http = assetResp as? HTTPURLResponse, http.statusCode >= 400 {
                 log("Updater: asset download failed with status \(http.statusCode)")
                 status("Clock Update", "Download failed (HTTP \(http.statusCode)).")
@@ -343,7 +395,10 @@ final class AppUpdater {
                 .appendingPathComponent("clock-update-\(UUID().uuidString)", isDirectory: true)
             try FileManager.default.createDirectory(at: tmpDir, withIntermediateDirectories: true)
             let zipPath = tmpDir.appendingPathComponent("Clock.app.zip")
-            try zipData.write(to: zipPath)
+            if FileManager.default.fileExists(atPath: zipPath.path) {
+                try FileManager.default.removeItem(at: zipPath)
+            }
+            try FileManager.default.copyItem(at: zipTempURL, to: zipPath)
 
             let scriptPath = tmpDir.appendingPathComponent("install-update.sh")
             try installScript().write(to: scriptPath, atomically: true, encoding: .utf8)
@@ -364,6 +419,82 @@ final class AppUpdater {
             log("Updater failed: \(error)")
             status("Clock Update", "Update failed: \(error.localizedDescription)")
         }
+    }
+
+    private func downloadRequestWithProgress(_ request: URLRequest) throws -> (URL, URLResponse) {
+        let sem = DispatchSemaphore(value: 0)
+        var outURL: URL?
+        var outResp: URLResponse?
+        var outErr: Error?
+
+        let task = URLSession.shared.downloadTask(with: request) { url, response, error in
+            outURL = url
+            outResp = response
+            outErr = error
+            sem.signal()
+        }
+        task.resume()
+
+        var lastProgressAt = Date.distantPast
+        var lastReportedPercent = -1
+        var lastObservedBytes: Int64 = 0
+        var lastByteChangeAt = Date()
+        var lastReportedChunk = -1
+
+        while true {
+            let waitResult = sem.wait(timeout: .now() + 1.0)
+            if waitResult == .success {
+                break
+            }
+
+            let received = max(task.countOfBytesReceived, 0)
+            let expected = task.countOfBytesExpectedToReceive
+
+            if received != lastObservedBytes {
+                lastObservedBytes = received
+                lastByteChangeAt = Date()
+            }
+            if Date().timeIntervalSince(lastByteChangeAt) > 90 {
+                task.cancel()
+                throw NSError(
+                    domain: "ClockUpdater",
+                    code: -1001,
+                    userInfo: [NSLocalizedDescriptionKey: "Download stalled. Please try again."]
+                )
+            }
+
+            if expected > 0 {
+                let percent = Int((Double(received) / Double(expected)) * 100.0)
+                let shouldReport = percent >= lastReportedPercent + 5
+                    || Date().timeIntervalSince(lastProgressAt) > 8
+                if shouldReport {
+                    lastReportedPercent = percent
+                    lastProgressAt = Date()
+                    let receivedMB = Double(received) / 1_048_576.0
+                    let expectedMB = Double(expected) / 1_048_576.0
+                    progress(String(format: "Downloading… %d%% (%.1f / %.1f MB)", min(percent, 100), receivedMB, expectedMB))
+                }
+            } else {
+                let chunk = Int(received / 5_242_880) // 5 MB
+                if chunk > lastReportedChunk {
+                    lastReportedChunk = chunk
+                    let receivedMB = Double(received) / 1_048_576.0
+                    progress(String(format: "Downloading… %.1f MB", receivedMB))
+                }
+            }
+        }
+
+        if let outErr {
+            throw outErr
+        }
+        guard let outURL, let outResp else {
+            throw NSError(
+                domain: "ClockUpdater",
+                code: -1,
+                userInfo: [NSLocalizedDescriptionKey: "No response from download request."]
+            )
+        }
+        return (outURL, outResp)
     }
 
     private func installScript() -> String {
@@ -472,6 +603,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         config.userContentController = contentController
 
         let webView = WKWebView(frame: window.contentView!.bounds, configuration: config)
+        focusHandler.webView = webView
         webView.autoresizingMask = [.width, .height]
         webView.allowsBackForwardNavigationGestures = false
         webView.setValue(false, forKey: "drawsBackground")
