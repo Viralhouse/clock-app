@@ -5,6 +5,62 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Clock</title>
   <style>
+    :root {
+      --bg: #1a1a2e;
+      --clock: #e0e0e0;
+      --countdown: #66ddaa;
+      --quote: #8888aa;
+      --btn-bg: rgba(255,255,255,0.08);
+      --btn-border: rgba(255,255,255,0.15);
+      --btn-text: #c0c0d0;
+      --btn-bg-hover: rgba(255,255,255,0.15);
+      --btn-border-hover: rgba(255,255,255,0.3);
+      --input-bg: rgba(255,255,255,0.06);
+      --input-border: rgba(255,255,255,0.15);
+      --input-text: #c0c0d0;
+      --input-placeholder: #555566;
+      --input-border-focus: rgba(255,255,255,0.35);
+      --cancel: #665566;
+      --cancel-hover: #aa6666;
+      --panel-bg: rgba(255,255,255,0.05);
+      --panel-border: rgba(255,255,255,0.14);
+      --panel-title: #aab4cf;
+      --panel-track: #dbe3ff;
+      --panel-btn-bg: rgba(255,255,255,0.1);
+      --panel-btn-border: rgba(255,255,255,0.2);
+      --panel-btn-text: #d2d8ea;
+      --panel-progress-bg: rgba(255,255,255,0.12);
+      --panel-time: #9aa6c7;
+      --accent: #66ddaa;
+    }
+    body.light {
+      --bg: #eef1f7;
+      --clock: #182033;
+      --countdown: #1d8f5f;
+      --quote: #4e5f86;
+      --btn-bg: rgba(24,32,51,0.08);
+      --btn-border: rgba(24,32,51,0.18);
+      --btn-text: #1f2a44;
+      --btn-bg-hover: rgba(24,32,51,0.16);
+      --btn-border-hover: rgba(24,32,51,0.34);
+      --input-bg: rgba(24,32,51,0.06);
+      --input-border: rgba(24,32,51,0.2);
+      --input-text: #1f2a44;
+      --input-placeholder: #6d7691;
+      --input-border-focus: rgba(24,32,51,0.4);
+      --cancel: #5f6e93;
+      --cancel-hover: #b45757;
+      --panel-bg: rgba(24,32,51,0.06);
+      --panel-border: rgba(24,32,51,0.16);
+      --panel-title: #425074;
+      --panel-track: #1f2a44;
+      --panel-btn-bg: rgba(24,32,51,0.10);
+      --panel-btn-border: rgba(24,32,51,0.2);
+      --panel-btn-text: #1f2a44;
+      --panel-progress-bg: rgba(24,32,51,0.14);
+      --panel-time: #516083;
+      --accent: #1d8f5f;
+    }
     body {
       margin: 0;
       display: flex;
@@ -12,18 +68,19 @@
       justify-content: center;
       align-items: center;
       min-height: 100vh;
-      background: #1a1a2e;
+      background: var(--bg);
       font-family: 'Courier New', monospace;
+      transition: background 0.25s ease, color 0.25s ease;
     }
     .clock {
-      color: #e0e0e0;
+      color: var(--clock);
       font-size: 6rem;
       letter-spacing: 0.05em;
       transition: color 0.4s;
     }
-    .clock.countdown { color: #66ddaa; }
+    .clock.countdown { color: var(--countdown); }
     .quote {
-      color: #8888aa;
+      color: var(--quote);
       font-size: 1.2rem;
       max-width: 600px;
       text-align: center;
@@ -41,9 +98,9 @@
     }
     .timer-controls.hidden { display: none; }
     .timer-btn {
-      background: rgba(255,255,255,0.08);
-      border: 1px solid rgba(255,255,255,0.15);
-      color: #c0c0d0;
+      background: var(--btn-bg);
+      border: 1px solid var(--btn-border);
+      color: var(--btn-text);
       font-family: 'Courier New', monospace;
       font-size: 0.95rem;
       padding: 0.5rem 1.2rem;
@@ -52,8 +109,8 @@
       transition: background 0.2s, border-color 0.2s;
     }
     .timer-btn:hover {
-      background: rgba(255,255,255,0.15);
-      border-color: rgba(255,255,255,0.3);
+      background: var(--btn-bg-hover);
+      border-color: var(--btn-border-hover);
     }
     .icon-btn {
       width: 38px;
@@ -78,13 +135,19 @@
       left: 14px;
       z-index: 20;
     }
+    #themeBtn {
+      position: fixed;
+      top: 58px;
+      left: 14px;
+      z-index: 20;
+    }
     #soundModeBtn {
       margin-top: 0.75rem;
     }
     .timer-input {
-      background: rgba(255,255,255,0.06);
-      border: 1px solid rgba(255,255,255,0.15);
-      color: #c0c0d0;
+      background: var(--input-bg);
+      border: 1px solid var(--input-border);
+      color: var(--input-text);
       font-family: 'Courier New', monospace;
       font-size: 0.95rem;
       padding: 0.5rem 0.6rem;
@@ -93,12 +156,12 @@
       text-align: center;
       outline: none;
     }
-    .timer-input::placeholder { color: #555566; }
-    .timer-input:focus { border-color: rgba(255,255,255,0.35); }
+    .timer-input::placeholder { color: var(--input-placeholder); }
+    .timer-input:focus { border-color: var(--input-border-focus); }
     .cancel-btn {
       background: none;
       border: none;
-      color: #665566;
+      color: var(--cancel);
       font-family: 'Courier New', monospace;
       font-size: 0.85rem;
       cursor: pointer;
@@ -106,26 +169,26 @@
       padding: 0.3rem 0.8rem;
       transition: color 0.2s;
     }
-    .cancel-btn:hover { color: #aa6666; }
+    .cancel-btn:hover { color: var(--cancel-hover); }
     .cancel-btn.hidden { display: none; }
     .hidden { display: none !important; }
     .playlist {
       margin-top: 1rem;
       width: min(620px, 92vw);
-      background: rgba(255,255,255,0.05);
-      border: 1px solid rgba(255,255,255,0.14);
+      background: var(--panel-bg);
+      border: 1px solid var(--panel-border);
       border-radius: 10px;
       padding: 0.8rem 0.9rem;
       box-sizing: border-box;
     }
     .playlist-title {
-      color: #aab4cf;
+      color: var(--panel-title);
       font-size: 0.85rem;
       margin-bottom: 0.5rem;
       letter-spacing: 0.04em;
     }
     .playlist-track {
-      color: #dbe3ff;
+      color: var(--panel-track);
       font-size: 0.95rem;
       white-space: nowrap;
       overflow: hidden;
@@ -139,9 +202,9 @@
       margin-bottom: 0.55rem;
     }
     .playlist-btn {
-      background: rgba(255,255,255,0.1);
-      border: 1px solid rgba(255,255,255,0.2);
-      color: #d2d8ea;
+      background: var(--panel-btn-bg);
+      border: 1px solid var(--panel-btn-border);
+      color: var(--panel-btn-text);
       font-family: 'Courier New', monospace;
       font-size: 0.82rem;
       padding: 0.3rem 0.65rem;
@@ -150,7 +213,7 @@
     }
     .playlist-progress {
       height: 6px;
-      background: rgba(255,255,255,0.12);
+      background: var(--panel-progress-bg);
       border-radius: 999px;
       cursor: pointer;
       overflow: hidden;
@@ -158,12 +221,12 @@
     .playlist-progress-fill {
       height: 100%;
       width: 0%;
-      background: #66ddaa;
+      background: var(--accent);
       transition: width 0.1s linear;
     }
     .playlist-time {
       margin-top: 0.35rem;
-      color: #9aa6c7;
+      color: var(--panel-time);
       font-size: 0.75rem;
       text-align: right;
     }
@@ -183,6 +246,7 @@
   <button class="timer-btn hidden" id="soundModeBtn" onclick="toggleSoundMode()">Sound: Rain</button>
   <button class="timer-btn icon-btn hidden" id="muteBtn" onclick="toggleMute()" title="Toggle mute" aria-label="Toggle mute">🔊</button>
   <button class="timer-btn icon-btn" id="updateBtn" onclick="triggerUpdate()" title="Check for updates" aria-label="Check for updates">↻</button>
+  <button class="timer-btn icon-btn" id="themeBtn" onclick="toggleTheme()" title="Toggle theme" aria-label="Toggle theme">☀️</button>
   <button class="cancel-btn hidden" id="cancelBtn" onclick="cancelTimer()">[ abbrechen ]</button>
   <div class="playlist hidden" id="playlistPanel">
     <div class="playlist-title">LoFi Playlist (10 Tracks)</div>
@@ -229,6 +293,7 @@
     let rainNodes = [];
     let soundMode = 'rain';
     let isMuted = false;
+    let theme = 'dark';
     const lofiAudio = document.getElementById('lofiAudio');
     const lofiTracks = [
       { name: 'Magenta Metropolis', src: 'audio/lofi/track01.mp3' },
@@ -263,6 +328,24 @@
     function updateSoundButton() {
       const btn = document.getElementById('soundModeBtn');
       btn.textContent = soundMode === 'rain' ? 'Sound: Rain' : 'Sound: LoFi';
+    }
+
+    function applyTheme(nextTheme) {
+      theme = nextTheme === 'light' ? 'light' : 'dark';
+      document.body.classList.toggle('light', theme === 'light');
+      try { localStorage.setItem('clock_theme', theme); } catch (_) {}
+      updateThemeButton();
+    }
+
+    function updateThemeButton() {
+      const btn = document.getElementById('themeBtn');
+      btn.textContent = theme === 'dark' ? '☀️' : '🌙';
+      btn.title = theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode';
+      btn.setAttribute('aria-label', btn.title);
+    }
+
+    function toggleTheme() {
+      applyTheme(theme === 'dark' ? 'light' : 'dark');
     }
 
     function toggleSoundMode() {
@@ -697,6 +780,11 @@
       Notification.requestPermission();
     }
 
+    try {
+      applyTheme(localStorage.getItem('clock_theme') || 'dark');
+    } catch (_) {
+      applyTheme('dark');
+    }
     updateClock();
     initShuffle(true);
     loadLofiTrack(shufflePos, false);
