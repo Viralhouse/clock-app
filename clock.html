@@ -106,11 +106,15 @@
       padding: 0.5rem 1.2rem;
       border-radius: 6px;
       cursor: pointer;
-      transition: background 0.2s, border-color 0.2s;
+      box-shadow: 0 0 0.35rem color-mix(in srgb, var(--accent) 35%, transparent);
+      transition: background 0.2s, border-color 0.2s, box-shadow 0.2s;
     }
     .timer-btn:hover {
       background: var(--btn-bg-hover);
       border-color: var(--btn-border-hover);
+      box-shadow:
+        0 0 0.45rem color-mix(in srgb, var(--accent) 55%, transparent),
+        0 0 0.95rem color-mix(in srgb, var(--accent) 35%, transparent);
     }
     .icon-btn {
       width: 38px;
@@ -210,6 +214,13 @@
       padding: 0.3rem 0.65rem;
       border-radius: 6px;
       cursor: pointer;
+      box-shadow: 0 0 0.3rem color-mix(in srgb, var(--accent) 30%, transparent);
+      transition: box-shadow 0.2s, border-color 0.2s;
+    }
+    .playlist-btn:hover {
+      box-shadow:
+        0 0 0.4rem color-mix(in srgb, var(--accent) 50%, transparent),
+        0 0 0.8rem color-mix(in srgb, var(--accent) 28%, transparent);
     }
     .playlist-progress {
       height: 6px;

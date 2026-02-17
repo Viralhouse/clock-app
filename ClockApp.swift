@@ -400,9 +400,10 @@ final class AppUpdater {
 
     private func compareVersions(_ lhs: String, _ rhs: String) -> Int {
         func parse(_ s: String) -> [Int] {
-            let cleaned = s.replacingOccurrences(of: "[^0-9.]", with: "", options: .regularExpression)
-            if cleaned.isEmpty { return [0] }
-            return cleaned.split(separator: ".").map { Int($0) ?? 0 }
+            let parts = s.components(separatedBy: CharacterSet.decimalDigits.inverted)
+                .filter { !$0.isEmpty }
+                .compactMap { Int($0) }
+            return parts.isEmpty ? [0] : parts
         }
         let a = parse(lhs)
         let b = parse(rhs)
