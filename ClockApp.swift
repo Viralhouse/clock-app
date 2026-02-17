@@ -574,6 +574,7 @@ private extension URLSession {
 class AppDelegate: NSObject, NSApplicationDelegate {
     var window: NSWindow!
     var focusHandler = FocusMessageHandler()
+    private let onboardingVersionKey = "onboarding_shown_v1"
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         configureMenu()
@@ -624,6 +625,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         window.contentView!.addSubview(webView)
         window.makeKeyAndOrderFront(nil)
+        showOnboardingIfNeeded()
 
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             guard let self else { return }
@@ -709,6 +711,34 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         alert.addButton(withTitle: "Open Shortcuts")
         alert.addButton(withTitle: "OK")
         let response = alert.runModal()
+        if response == .alertFirstButtonReturn {
+            NSWorkspace.shared.open(URL(fileURLWithPath: "/System/Applications/Shortcuts.app"))
+        }
+    }
+
+    private func showOnboardingIfNeeded() {
+        let defaults = UserDefaults.standard
+        if defaults.bool(forKey: onboardingVersionKey) { return }
+
+        let alert = NSAlert()
+        alert.alertStyle = .informational
+        alert.messageText = "Welcome to Clock"
+        alert.informativeText = """
+        Quick setup (one time):
+
+        1) If macOS blocks opening:
+           Right-click Clock.app -> Open -> Open.
+        2) Grant Accessibility + Automation permissions when asked.
+        3) Create Shortcuts:
+           - FocusOn  (Do Not Disturb ON)
+           - FocusOff (Do Not Disturb OFF)
+        4) Updates:
+           Use ↻ button or Cmd+U.
+        """
+        alert.addButton(withTitle: "Open Shortcuts")
+        alert.addButton(withTitle: "Continue")
+        let response = alert.runModal()
+        defaults.set(true, forKey: onboardingVersionKey)
         if response == .alertFirstButtonReturn {
             NSWorkspace.shared.open(URL(fileURLWithPath: "/System/Applications/Shortcuts.app"))
         }
