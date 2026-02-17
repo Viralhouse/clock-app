@@ -95,6 +95,13 @@
       line-height: 1.6;
       transition: opacity 0.5s, border-color 0.25s, box-shadow 0.25s;
     }
+    body.light .quote {
+      border-color: rgba(0,82,72,0.5);
+      box-shadow:
+        inset 0 0 0 1px rgba(0,82,72,0.28),
+        inset 0 0 0.6rem color-mix(in srgb, var(--accent) 10%, transparent),
+        0 0 1.1rem color-mix(in srgb, var(--accent) 22%, transparent);
+    }
     .timer-controls {
       margin-top: 2rem;
       display: flex;
