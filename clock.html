@@ -79,12 +79,19 @@
       transition: color 0.4s;
     }
     .clock.countdown { color: var(--countdown); }
+    .quote-row {
+      margin-top: 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.65rem;
+      width: min(680px, 92vw);
+    }
     .quote {
       color: var(--quote);
       font-size: 1.2rem;
-      max-width: 600px;
+      width: 100%;
       text-align: center;
-      margin-top: 2rem;
       padding: 0.9rem 1.1rem;
       border-radius: 12px;
       border: 1px solid color-mix(in srgb, var(--accent) 32%, transparent);
@@ -95,10 +102,21 @@
       line-height: 1.6;
       transition: opacity 0.5s, border-color 0.25s, box-shadow 0.25s;
     }
-    .quote-next {
-      margin-top: 0.6rem;
-      font-size: 0.8rem;
-      padding: 0.35rem 0.8rem;
+    .quote-nav {
+      border: none;
+      background: transparent;
+      color: var(--quote);
+      font-family: 'Courier New', monospace;
+      font-size: 1.15rem;
+      line-height: 1;
+      padding: 0.2rem 0.35rem;
+      cursor: pointer;
+      opacity: 0.85;
+      transition: opacity 0.2s ease, transform 0.2s ease;
+    }
+    .quote-nav:hover {
+      opacity: 1;
+      transform: scale(1.06);
     }
     body.light .quote {
       border-color: rgba(0,82,72,0.5);
@@ -272,8 +290,11 @@
 </head>
 <body>
   <div class="clock" id="clock"></div>
-  <div class="quote" id="quote"></div>
-  <button class="timer-btn quote-next" id="nextQuoteBtn" onclick="nextQuote()">Next Quote</button>
+  <div class="quote-row">
+    <button class="quote-nav" id="prevQuoteBtn" onclick="prevQuote()" aria-label="Previous quote">&lt;</button>
+    <div class="quote" id="quote"></div>
+    <button class="quote-nav" id="nextQuoteBtn" onclick="nextQuote()" aria-label="Next quote">&gt;</button>
+  </div>
   <div class="timer-controls" id="timerControls">
     <button class="timer-btn" onclick="startTimer(15)">15m</button>
     <button class="timer-btn" onclick="startTimer(30)">30m</button>
@@ -335,7 +356,8 @@
       "Momentum is built one session at a time."
     ];
 
-    let lastIndex = -1;
+    let currentQuoteIndex = -1;
+    let quoteOrder = [];
     let timerInterval = null;
     let timerEndTime = null;
     let rainCtx = null;
@@ -361,22 +383,69 @@
     let shufflePos = 0;
     let updatePending = false;
 
-    function showQuote() {
-      let index;
-      do {
-        index = Math.floor(Math.random() * quotes.length);
-      } while (index === lastIndex);
-      lastIndex = index;
+    function initQuoteOrder(keepCurrent = false) {
+      quoteOrder = Array.from({ length: quotes.length }, (_, i) => i);
+      for (let i = quoteOrder.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [quoteOrder[i], quoteOrder[j]] = [quoteOrder[j], quoteOrder[i]];
+      }
+      if (keepCurrent && currentQuoteIndex >= 0) {
+        const pos = quoteOrder.indexOf(currentQuoteIndex);
+        if (pos > 0) [quoteOrder[0], quoteOrder[pos]] = [quoteOrder[pos], quoteOrder[0]];
+      }
+    }
+
+    function showQuote(index = null) {
+      if (quoteOrder.length !== quotes.length) initQuoteOrder();
+      if (index == null) {
+        if (currentQuoteIndex === -1) {
+          currentQuoteIndex = quoteOrder[0];
+        } else {
+          let pos = quoteOrder.indexOf(currentQuoteIndex);
+          if (pos === -1) {
+            initQuoteOrder();
+            pos = 0;
+          }
+          if (pos >= quoteOrder.length - 1) {
+            initQuoteOrder(true);
+            pos = 0;
+          } else {
+            pos += 1;
+          }
+          currentQuoteIndex = quoteOrder[pos];
+        }
+      } else {
+        currentQuoteIndex = index;
+      }
       const el = document.getElementById('quote');
       el.style.opacity = 0;
       setTimeout(() => {
-        el.textContent = quotes[index];
+        el.textContent = quotes[currentQuoteIndex];
         el.style.opacity = 1;
       }, 500);
     }
 
     function nextQuote() {
       showQuote();
+    }
+
+    function prevQuote() {
+      if (quoteOrder.length !== quotes.length) initQuoteOrder();
+      if (currentQuoteIndex === -1) {
+        currentQuoteIndex = quoteOrder[0];
+      } else {
+        let pos = quoteOrder.indexOf(currentQuoteIndex);
+        if (pos === -1) {
+          initQuoteOrder();
+          pos = 0;
+        }
+        if (pos <= 0) {
+          currentQuoteIndex = quoteOrder[quoteOrder.length - 1];
+        } else {
+          currentQuoteIndex = quoteOrder[pos - 1];
+        }
+      }
+      showQuote(currentQuoteIndex);
     }
 
     function updateSoundButton() {
