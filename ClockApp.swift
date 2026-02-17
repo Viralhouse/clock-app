@@ -32,6 +32,10 @@ class FocusMessageHandler: NSObject, WKScriptMessageHandler {
         }
     }
 
+    func requestUpdateFromNative() {
+        performInAppUpdate()
+    }
+
     private func performInAppUpdate() {
         showUpdateAlert(title: "Clock Update", message: "Checking for updates...")
         DispatchQueue.global(qos: .userInitiated).async { [self] in
@@ -420,6 +424,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var focusHandler = FocusMessageHandler()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        configureMenu()
+
         let screen = NSScreen.main!.frame
         let width: CGFloat = 700
         let height: CGFloat = 400
@@ -479,6 +485,39 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         return true
+    }
+
+    @objc private func checkForUpdatesMenuAction(_ sender: Any?) {
+        focusHandler.requestUpdateFromNative()
+    }
+
+    private func configureMenu() {
+        let mainMenu = NSMenu()
+        NSApp.mainMenu = mainMenu
+
+        let appMenuItem = NSMenuItem()
+        mainMenu.addItem(appMenuItem)
+
+        let appMenu = NSMenu()
+        appMenuItem.submenu = appMenu
+
+        let updateItem = NSMenuItem(
+            title: "Check for Updates…",
+            action: #selector(checkForUpdatesMenuAction(_:)),
+            keyEquivalent: "u"
+        )
+        updateItem.keyEquivalentModifierMask = [.command]
+        updateItem.target = self
+        appMenu.addItem(updateItem)
+        appMenu.addItem(NSMenuItem.separator())
+
+        let quitItem = NSMenuItem(
+            title: "Quit Clock",
+            action: #selector(NSApplication.terminate(_:)),
+            keyEquivalent: "q"
+        )
+        quitItem.keyEquivalentModifierMask = [.command]
+        appMenu.addItem(quitItem)
     }
 
     private func missingRequiredShortcuts() -> [String] {
