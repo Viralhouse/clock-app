@@ -575,12 +575,13 @@
 
     let rainMasterGain = null;
     let oceanMasterGain = null;
+    let lofiMasterGain = null;
 
     function applyVolumeAll() {
       const v = isMuted ? 0 : volume;
       if (rainMasterGain) rainMasterGain.gain.value = v;
       if (oceanMasterGain) oceanMasterGain.gain.value = v;
-      lofiAudio.volume = isMuted ? 0 : volume;
+      if (lofiMasterGain) lofiMasterGain.gain.value = v;
     }
 
     function toggleMute() {
@@ -1023,7 +1024,7 @@
     }
 
     function startLofi() {
-      lofiAudio.volume = isMuted ? 0 : volume;
+      if (lofiMasterGain) lofiMasterGain.gain.value = isMuted ? 0 : volume;
       lofiAudio.play().then(updateLofiPlayButton).catch(() => {
         soundMode = 'rain';
         updateSoundButton();
@@ -1059,8 +1060,11 @@
       lofiMediaSource = lofiAudioCtx.createMediaElementSource(lofiAudio);
       lofiAnalyser = lofiAudioCtx.createAnalyser();
       lofiAnalyser.fftSize = 256;
+      lofiMasterGain = lofiAudioCtx.createGain();
+      lofiMasterGain.gain.value = isMuted ? 0 : volume;
       lofiMediaSource.connect(lofiAnalyser);
-      lofiAnalyser.connect(lofiAudioCtx.destination);
+      lofiAnalyser.connect(lofiMasterGain);
+      lofiMasterGain.connect(lofiAudioCtx.destination);
     }
 
     // --- Visualizer ---
