@@ -215,6 +215,37 @@
     #soundModeBtn {
       margin-top: 0.75rem;
     }
+    .volume-wrap {
+      position: fixed;
+      top: 14px;
+      right: 56px;
+      z-index: 20;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .volume-wrap label {
+      color: var(--btn-text);
+      font-family: 'Courier New', monospace;
+      font-size: 0.7rem;
+    }
+    #volumeSlider {
+      -webkit-appearance: none;
+      width: 80px;
+      height: 4px;
+      border-radius: 2px;
+      background: var(--btn-border);
+      outline: none;
+      cursor: pointer;
+    }
+    #volumeSlider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: var(--accent);
+      cursor: pointer;
+    }
     .timer-input {
       background: var(--input-bg);
       border: 1px solid var(--input-border);
@@ -330,6 +361,10 @@
            onkeydown="if(event.key==='Enter'){startTimer(parseInt(this.value))}">
   </div>
   <button class="timer-btn hidden" id="soundModeBtn" onclick="toggleSoundMode()">Sound: Rain</button>
+  <div class="volume-wrap hidden" id="volumeWrap">
+    <label for="volumeSlider">Vol</label>
+    <input type="range" id="volumeSlider" min="0" max="100" value="70" oninput="setVolume(this.value)">
+  </div>
   <button class="timer-btn icon-btn hidden" id="muteBtn" onclick="toggleMute()" title="Toggle mute" aria-label="Toggle mute">🔊</button>
   <button class="timer-btn icon-btn hidden" id="vizToggleBtn" onclick="toggleViz()" title="Visualizer an/aus" aria-label="Visualizer an/aus">◉</button>
   <button class="timer-btn icon-btn hidden" id="vizColorBtn" onclick="cycleVizColor()" title="Visualizer Farbe" aria-label="Visualizer Farbe">●</button>
@@ -337,7 +372,7 @@
   <button class="timer-btn icon-btn" id="themeBtn" onclick="toggleTheme()" title="Toggle theme" aria-label="Toggle theme">◐</button>
   <button class="cancel-btn hidden" id="cancelBtn" onclick="cancelTimer()">[ abbrechen ]</button>
   <div class="playlist hidden" id="playlistPanel">
-    <div class="playlist-title">LoFi Playlist (10 Tracks)</div>
+    <div class="playlist-title">LoFi Playlist (18 Tracks)</div>
     <div class="playlist-track" id="playlistTrackName">-</div>
     <div class="playlist-controls">
       <button class="playlist-btn" onclick="prevLofiTrack()">Prev</button>
@@ -390,21 +425,33 @@
     let timerEndTime = null;
     let rainCtx = null;
     let rainNodes = [];
+    let oceanCtx = null;
+    let oceanNodes = [];
+    let oceanAnalyser = null;
     let soundMode = 'rain';
     let isMuted = false;
+    let volume = 0.7;
     let theme = 'dark';
     const lofiAudio = document.getElementById('lofiAudio');
     const lofiTracks = [
-      { name: 'Magenta Metropolis', src: 'audio/lofi/track01.mp3' },
       { name: 'Lucid Dreaming', src: 'audio/lofi/track02.mp3' },
       { name: 'Downtown Walk', src: 'audio/lofi/track03.mp3' },
-      { name: 'Hot Pepper', src: 'audio/lofi/track04.mp3' },
       { name: 'Rain Book And Cup Of Tea', src: 'audio/lofi/track05.mp3' },
       { name: 'Rooftop', src: 'audio/lofi/track06.mp3' },
       { name: 'Morning Espresso', src: 'audio/lofi/track07.mp3' },
       { name: 'Rain Book And Cup Of Tea Loop', src: 'audio/lofi/track08.mp3' },
       { name: 'Dusk Horizon', src: 'audio/lofi/track09.mp3' },
-      { name: 'Hometown Rain', src: 'audio/lofi/track10.mp3' }
+      { name: 'Hometown Rain', src: 'audio/lofi/track10.mp3' },
+      { name: 'When Time Called Me Darling', src: 'audio/lofi/track11.mp3' },
+      { name: 'Still Life', src: 'audio/lofi/track12.mp3' },
+      { name: 'Canon Event', src: 'audio/lofi/track13.mp3' },
+      { name: 'Bubbles', src: 'audio/lofi/track14.mp3' },
+      { name: 'One Night In France', src: 'audio/lofi/track15.mp3' },
+      { name: 'Tranquil Mindscape', src: 'audio/lofi/track16.mp3' },
+      { name: 'Tokyo Sunset', src: 'audio/lofi/track17.mp3' },
+      { name: 'Theta Frequency', src: 'audio/lofi/track18.mp3' },
+      { name: 'Waiting Around', src: 'audio/lofi/track19.mp3' },
+      { name: 'Lucid', src: 'audio/lofi/track20.mp3' }
     ];
     let currentLofiTrack = 0;
     let shuffledOrder = [];
@@ -486,7 +533,8 @@
 
     function updateSoundButton() {
       const btn = document.getElementById('soundModeBtn');
-      btn.textContent = soundMode === 'rain' ? 'Sound: Rain' : 'Sound: LoFi';
+      const labels = { rain: 'Sound: Rain', ocean: 'Sound: Ocean', lofi: 'Sound: LoFi' };
+      btn.textContent = labels[soundMode] || 'Sound: Rain';
     }
 
     function applyTheme(nextTheme) {
@@ -508,7 +556,8 @@
     }
 
     function toggleSoundMode() {
-      soundMode = soundMode === 'rain' ? 'lofi' : 'rain';
+      const modes = ['rain', 'ocean', 'lofi'];
+      soundMode = modes[(modes.indexOf(soundMode) + 1) % modes.length];
       updateSoundButton();
       updatePlaylistVisibility();
       if (timerInterval) {
@@ -529,17 +578,35 @@
       const gain = rainNodes[3];
       const patterGain = rainNodes[8];
       const now = rainCtx.currentTime;
+      const v = isMuted ? 0 : volume;
       gain.gain.cancelScheduledValues(now);
       patterGain.gain.cancelScheduledValues(now);
-      gain.gain.linearRampToValueAtTime(isMuted ? 0 : 0.15, now + 0.1);
-      patterGain.gain.linearRampToValueAtTime(isMuted ? 0 : 0.04, now + 0.1);
+      gain.gain.linearRampToValueAtTime(0.15 * v, now + 0.1);
+      patterGain.gain.linearRampToValueAtTime(0.04 * v, now + 0.1);
+    }
+
+    function applyOceanMuteState() {
+      if (!oceanCtx || oceanNodes.length < 2) return;
+      const gain = oceanNodes[0];
+      const now = oceanCtx.currentTime;
+      const v = isMuted ? 0 : volume;
+      gain.gain.cancelScheduledValues(now);
+      gain.gain.linearRampToValueAtTime(0.25 * v, now + 0.1);
     }
 
     function toggleMute() {
       isMuted = !isMuted;
       lofiAudio.muted = isMuted;
       applyRainMuteState();
+      applyOceanMuteState();
       updateMuteButton();
+    }
+
+    function setVolume(val) {
+      volume = val / 100;
+      lofiAudio.volume = volume;
+      applyRainMuteState();
+      applyOceanMuteState();
     }
 
     function triggerUpdate() {
@@ -751,7 +818,7 @@
 
       const gain = rainCtx.createGain();
       gain.gain.value = 0;
-      gain.gain.linearRampToValueAtTime(isMuted ? 0 : 0.15, rainCtx.currentTime + 2);
+      gain.gain.linearRampToValueAtTime(isMuted ? 0 : 0.15 * volume, rainCtx.currentTime + 2);
       lfoGain.connect(gain.gain); // modulate the main gain
 
       rainAnalyser = rainCtx.createAnalyser();
@@ -786,7 +853,7 @@
 
       const patterGain = rainCtx.createGain();
       patterGain.gain.value = 0;
-      patterGain.gain.linearRampToValueAtTime(isMuted ? 0 : 0.04, rainCtx.currentTime + 2);
+      patterGain.gain.linearRampToValueAtTime(isMuted ? 0 : 0.04 * volume, rainCtx.currentTime + 2);
 
       patterSource.connect(patterFilter);
       patterFilter.connect(patterGain);
@@ -841,8 +908,130 @@
       }, 2000);
     }
 
+    // --- Ocean Sound ---
+    function startOcean() {
+      oceanCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const sr = oceanCtx.sampleRate;
+      const bufferSize = 4 * sr;
+
+      // Main gain node (stored at index 0)
+      const mainGain = oceanCtx.createGain();
+      mainGain.gain.value = 0;
+      mainGain.gain.linearRampToValueAtTime(isMuted ? 0 : 0.25 * volume, oceanCtx.currentTime + 2);
+
+      // Analyser
+      oceanAnalyser = oceanCtx.createAnalyser();
+      oceanAnalyser.fftSize = 256;
+      mainGain.connect(oceanAnalyser);
+      oceanAnalyser.connect(oceanCtx.destination);
+
+      // Layer 1: Deep ocean rumble (low-pass filtered brown noise)
+      const deepBuf = oceanCtx.createBuffer(2, bufferSize, sr);
+      for (let ch = 0; ch < 2; ch++) {
+        const data = deepBuf.getChannelData(ch);
+        let last = 0;
+        for (let i = 0; i < bufferSize; i++) {
+          last = (last + 0.02 * (Math.random() * 2 - 1)) / 1.02;
+          data[i] = last * 2;
+        }
+      }
+      const deepSrc = oceanCtx.createBufferSource();
+      deepSrc.buffer = deepBuf;
+      deepSrc.loop = true;
+      const deepLP = oceanCtx.createBiquadFilter();
+      deepLP.type = 'lowpass';
+      deepLP.frequency.value = 300;
+      deepLP.Q.value = 0.7;
+      const deepGain = oceanCtx.createGain();
+      deepGain.gain.value = 0.6;
+      deepSrc.connect(deepLP);
+      deepLP.connect(deepGain);
+      deepGain.connect(mainGain);
+      deepSrc.start();
+
+      // Layer 2: Surf/wash (bandpassed noise with LFO for wave rhythm)
+      const surfBuf = oceanCtx.createBuffer(2, bufferSize, sr);
+      for (let ch = 0; ch < 2; ch++) {
+        const data = surfBuf.getChannelData(ch);
+        for (let i = 0; i < bufferSize; i++) {
+          data[i] = Math.random() * 2 - 1;
+        }
+      }
+      const surfSrc = oceanCtx.createBufferSource();
+      surfSrc.buffer = surfBuf;
+      surfSrc.loop = true;
+      const surfBP = oceanCtx.createBiquadFilter();
+      surfBP.type = 'bandpass';
+      surfBP.frequency.value = 1200;
+      surfBP.Q.value = 0.4;
+      const surfGain = oceanCtx.createGain();
+      surfGain.gain.value = 0.15;
+      // LFO for wave swell
+      const waveLfo = oceanCtx.createOscillator();
+      waveLfo.type = 'sine';
+      waveLfo.frequency.value = 0.08; // ~12s wave cycle
+      const waveLfoGain = oceanCtx.createGain();
+      waveLfoGain.gain.value = 0.12;
+      waveLfo.connect(waveLfoGain);
+      waveLfoGain.connect(surfGain.gain);
+      surfSrc.connect(surfBP);
+      surfBP.connect(surfGain);
+      surfGain.connect(mainGain);
+      surfSrc.start();
+      waveLfo.start();
+
+      // Layer 3: High foam/hiss
+      const foamBuf = oceanCtx.createBuffer(2, bufferSize, sr);
+      for (let ch = 0; ch < 2; ch++) {
+        const data = foamBuf.getChannelData(ch);
+        for (let i = 0; i < bufferSize; i++) {
+          data[i] = (Math.random() * 2 - 1) * (Math.random() < 0.4 ? 1 : 0.15);
+        }
+      }
+      const foamSrc = oceanCtx.createBufferSource();
+      foamSrc.buffer = foamBuf;
+      foamSrc.loop = true;
+      const foamHP = oceanCtx.createBiquadFilter();
+      foamHP.type = 'highpass';
+      foamHP.frequency.value = 3000;
+      const foamGain = oceanCtx.createGain();
+      foamGain.gain.value = 0.04;
+      // Second LFO slightly offset for natural feel
+      const foamLfo = oceanCtx.createOscillator();
+      foamLfo.type = 'sine';
+      foamLfo.frequency.value = 0.1;
+      const foamLfoGain = oceanCtx.createGain();
+      foamLfoGain.gain.value = 0.03;
+      foamLfo.connect(foamLfoGain);
+      foamLfoGain.connect(foamGain.gain);
+      foamSrc.connect(foamHP);
+      foamHP.connect(foamGain);
+      foamGain.connect(mainGain);
+      foamSrc.start();
+      foamLfo.start();
+
+      oceanNodes = [mainGain, deepSrc, deepLP, deepGain, surfSrc, surfBP, surfGain,
+                    waveLfo, waveLfoGain, foamSrc, foamHP, foamGain, foamLfo, foamLfoGain];
+    }
+
+    function stopOcean() {
+      if (!oceanCtx) return;
+      const mainGain = oceanNodes[0];
+      const now = oceanCtx.currentTime;
+      mainGain.gain.cancelScheduledValues(now);
+      mainGain.gain.linearRampToValueAtTime(0, now + 1.5);
+      setTimeout(() => {
+        oceanNodes.forEach(n => { try { n.stop(); } catch(e) {} });
+        oceanCtx.close();
+        oceanCtx = null;
+        oceanNodes = [];
+        oceanAnalyser = null;
+      }, 2000);
+    }
+
     function startLofi() {
       lofiAudio.muted = isMuted;
+      lofiAudio.volume = volume;
       lofiAudio.play().then(updateLofiPlayButton).catch(() => {
         soundMode = 'rain';
         updateSoundButton();
@@ -860,15 +1049,14 @@
     }
 
     function startAmbience() {
-      if (soundMode === 'lofi') {
-        startLofi();
-      } else {
-        startRain();
-      }
+      if (soundMode === 'lofi') startLofi();
+      else if (soundMode === 'ocean') startOcean();
+      else startRain();
     }
 
     function stopAmbience() {
       stopRain();
+      stopOcean();
       stopLofi();
     }
 
@@ -956,7 +1144,7 @@
     function drawVisualizer() {
       vizAnimId = requestAnimationFrame(drawVisualizer);
 
-      const analyser = soundMode === 'lofi' ? lofiAnalyser : rainAnalyser;
+      const analyser = soundMode === 'lofi' ? lofiAnalyser : soundMode === 'ocean' ? oceanAnalyser : rainAnalyser;
       const canvas = document.getElementById('visualizer');
       const ctx = canvas.getContext('2d');
       const dpr = window.devicePixelRatio || 1;
@@ -1072,6 +1260,7 @@
       document.getElementById('cancelBtn').classList.remove('hidden');
       document.getElementById('soundModeBtn').classList.remove('hidden');
       document.getElementById('muteBtn').classList.remove('hidden');
+      document.getElementById('volumeWrap').classList.remove('hidden');
       document.getElementById('vizToggleBtn').classList.remove('hidden');
       document.getElementById('vizColorBtn').classList.remove('hidden');
       updatePlaylistVisibility();
@@ -1108,6 +1297,7 @@
       document.getElementById('muteBtn').classList.add('hidden');
       document.getElementById('vizToggleBtn').classList.add('hidden');
       document.getElementById('vizColorBtn').classList.add('hidden');
+      document.getElementById('volumeWrap').classList.add('hidden');
       document.getElementById('playlistPanel').classList.add('hidden');
       updateClock();
 
@@ -1129,6 +1319,7 @@
       document.getElementById('muteBtn').classList.add('hidden');
       document.getElementById('vizToggleBtn').classList.add('hidden');
       document.getElementById('vizColorBtn').classList.add('hidden');
+      document.getElementById('volumeWrap').classList.add('hidden');
       document.getElementById('playlistPanel').classList.add('hidden');
       updateClock();
 
