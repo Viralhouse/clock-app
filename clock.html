@@ -68,9 +68,9 @@
       justify-content: center;
       align-items: center;
       min-height: 100vh;
-      background: var(--bg);
+      background: var(--bg-grad, var(--bg));
       font-family: 'Courier New', monospace;
-      transition: background 0.25s ease, color 0.25s ease;
+      transition: background 0.6s ease, color 0.25s ease;
     }
     #visualizer {
       position: fixed;
@@ -567,39 +567,51 @@
 
     const colorThemes = [
       { name: 'Turquoise', preview: '#66ddaa',
-        dark: { bg:'#1a1a2e', clock:'#8affea', countdown:'#66ddaa', quote:'#6fffe6', accent:'#66ddaa',
+        dark: { bg:'#1a1a2e', bgGrad:'linear-gradient(135deg, #1a1a2e 0%, #0d2b3e 50%, #162a2a 100%)',
+          clock:'#8affea', countdown:'#66ddaa', quote:'#6fffe6', accent:'#66ddaa',
           panelTitle:'#aab4cf', panelTrack:'#dbe3ff', panelBtnText:'#d2d8ea', panelTime:'#9aa6c7' },
-        light: { bg:'#c8fff1', clock:'#06443e', countdown:'#00d7ac', quote:'#0f6f65', accent:'#00e8b8',
+        light: { bg:'#c8fff1', bgGrad:'linear-gradient(135deg, #c8fff1 0%, #e0fef8 40%, #b0f0e0 100%)',
+          clock:'#06443e', countdown:'#00d7ac', quote:'#0f6f65', accent:'#00e8b8',
           panelTitle:'#0b766c', panelTrack:'#06443e', panelBtnText:'#06443e', panelTime:'#0f7b70' }
       },
       { name: 'Rose', preview: '#ff6b9d',
-        dark: { bg:'#2a1a2e', clock:'#ffaacc', countdown:'#ff6b9d', quote:'#ffa0c8', accent:'#ff6b9d',
+        dark: { bg:'#2a1a2e', bgGrad:'linear-gradient(135deg, #2a1a2e 0%, #3d1a30 50%, #2e1a28 100%)',
+          clock:'#ffaacc', countdown:'#ff6b9d', quote:'#ffa0c8', accent:'#ff6b9d',
           panelTitle:'#cfaab8', panelTrack:'#ffe3ef', panelBtnText:'#ead2de', panelTime:'#c79aaf' },
-        light: { bg:'#fff0f5', clock:'#6e1035', countdown:'#e0457a', quote:'#8e2050', accent:'#ff4d88',
+        light: { bg:'#fff0f5', bgGrad:'linear-gradient(135deg, #fff0f5 0%, #ffe0ee 40%, #ffd0e8 100%)',
+          clock:'#6e1035', countdown:'#e0457a', quote:'#8e2050', accent:'#ff4d88',
           panelTitle:'#8e2050', panelTrack:'#6e1035', panelBtnText:'#6e1035', panelTime:'#a03060' }
       },
       { name: 'Amber', preview: '#ffaa33',
-        dark: { bg:'#2a2218', clock:'#ffe0a0', countdown:'#ffaa33', quote:'#ffc966', accent:'#ffaa33',
+        dark: { bg:'#2a2218', bgGrad:'linear-gradient(135deg, #2a2218 0%, #3a2a10 50%, #2e2418 100%)',
+          clock:'#ffe0a0', countdown:'#ffaa33', quote:'#ffc966', accent:'#ffaa33',
           panelTitle:'#cfbf9a', panelTrack:'#fff0d0', panelBtnText:'#eadcc2', panelTime:'#c7b08a' },
-        light: { bg:'#fff8e8', clock:'#5a3e00', countdown:'#d08800', quote:'#6e4e10', accent:'#ee9900',
+        light: { bg:'#fff8e8', bgGrad:'linear-gradient(135deg, #fff8e8 0%, #fff0d0 40%, #ffe8c0 100%)',
+          clock:'#5a3e00', countdown:'#d08800', quote:'#6e4e10', accent:'#ee9900',
           panelTitle:'#6e4e10', panelTrack:'#5a3e00', panelBtnText:'#5a3e00', panelTime:'#7e5e20' }
       },
       { name: 'Ocean', preview: '#4499ff',
-        dark: { bg:'#161a2e', clock:'#88ccff', countdown:'#4499ff', quote:'#77bbff', accent:'#4499ff',
+        dark: { bg:'#161a2e', bgGrad:'linear-gradient(135deg, #161a2e 0%, #0e1e40 50%, #141830 100%)',
+          clock:'#88ccff', countdown:'#4499ff', quote:'#77bbff', accent:'#4499ff',
           panelTitle:'#9ab4df', panelTrack:'#d0e4ff', panelBtnText:'#c0d4f0', panelTime:'#8aa4cf' },
-        light: { bg:'#e8f4ff', clock:'#0a3060', countdown:'#2277dd', quote:'#1a4a80', accent:'#2288ee',
+        light: { bg:'#e8f4ff', bgGrad:'linear-gradient(135deg, #e8f4ff 0%, #d4eaff 40%, #c0e0ff 100%)',
+          clock:'#0a3060', countdown:'#2277dd', quote:'#1a4a80', accent:'#2288ee',
           panelTitle:'#1a4a80', panelTrack:'#0a3060', panelBtnText:'#0a3060', panelTime:'#2a5a90' }
       },
       { name: 'Lavender', preview: '#aa77ff',
-        dark: { bg:'#1e1a2e', clock:'#ccaaff', countdown:'#aa77ff', quote:'#bb99ff', accent:'#aa77ff',
+        dark: { bg:'#1e1a2e', bgGrad:'linear-gradient(135deg, #1e1a2e 0%, #281a3e 50%, #221a34 100%)',
+          clock:'#ccaaff', countdown:'#aa77ff', quote:'#bb99ff', accent:'#aa77ff',
           panelTitle:'#b4a4df', panelTrack:'#e4d8ff', panelBtnText:'#d4c8f0', panelTime:'#a494cf' },
-        light: { bg:'#f4eeff', clock:'#3a1a6e', countdown:'#7744cc', quote:'#4e2888', accent:'#8855ee',
+        light: { bg:'#f4eeff', bgGrad:'linear-gradient(135deg, #f4eeff 0%, #ece0ff 40%, #e0d4ff 100%)',
+          clock:'#3a1a6e', countdown:'#7744cc', quote:'#4e2888', accent:'#8855ee',
           panelTitle:'#4e2888', panelTrack:'#3a1a6e', panelBtnText:'#3a1a6e', panelTime:'#5e3898' }
       },
       { name: 'Sakura', preview: '#ff88aa',
-        dark: { bg:'#2a1a24', clock:'#ffccdd', countdown:'#ff88aa', quote:'#ffaacc', accent:'#ff88aa',
+        dark: { bg:'#2a1a24', bgGrad:'linear-gradient(135deg, #2a1a24 0%, #321a28 50%, #2a1826 100%)',
+          clock:'#ffccdd', countdown:'#ff88aa', quote:'#ffaacc', accent:'#ff88aa',
           panelTitle:'#cfaabb', panelTrack:'#ffe8f0', panelBtnText:'#ead0dd', panelTime:'#c7a0b5' },
-        light: { bg:'#fff5f8', clock:'#5e1830', countdown:'#dd5577', quote:'#7e2848', accent:'#ee6688',
+        light: { bg:'#fff5f8', bgGrad:'linear-gradient(135deg, #fff5f8 0%, #ffe8f0 40%, #ffdde8 100%)',
+          clock:'#5e1830', countdown:'#dd5577', quote:'#7e2848', accent:'#ee6688',
           panelTitle:'#7e2848', panelTrack:'#5e1830', panelBtnText:'#5e1830', panelTime:'#8e3858' }
       }
     ];
@@ -616,6 +628,7 @@
       const vars = theme === 'light' ? ct.light : ct.dark;
       const root = document.documentElement;
       root.style.setProperty('--bg', vars.bg);
+      root.style.setProperty('--bg-grad', vars.bgGrad);
       root.style.setProperty('--clock', vars.clock);
       root.style.setProperty('--countdown', vars.countdown);
       root.style.setProperty('--quote', vars.quote);
