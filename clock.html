@@ -922,7 +922,25 @@
       const dataArray = new Uint8Array(analyser.frequencyBinCount);
       analyser.getByteFrequencyData(dataArray);
 
-      const step = Math.floor(dataArray.length / numBars);
+      // Map bins logarithmically so low frequencies don't dominate
+      const binCount = dataArray.length;
+      const barValues = new Float32Array(numBars);
+      for (let i = 0; i < numBars; i++) {
+        const t = i / numBars;
+        const logStart = Math.floor(Math.pow(t, 2) * binCount);
+        const logEnd = Math.max(logStart + 1, Math.floor(Math.pow((i + 1) / numBars, 2) * binCount));
+        let sum = 0;
+        for (let b = logStart; b < logEnd && b < binCount; b++) sum += dataArray[b];
+        barValues[i] = sum / (logEnd - logStart) / 255;
+      }
+
+      // Smooth neighbors to reduce spikiness
+      const smoothed = new Float32Array(numBars);
+      for (let i = 0; i < numBars; i++) {
+        const prev = barValues[(i - 1 + numBars) % numBars];
+        const next = barValues[(i + 1) % numBars];
+        smoothed[i] = barValues[i] * 0.5 + prev * 0.25 + next * 0.25;
+      }
 
       ctx.save();
       ctx.shadowColor = accent;
@@ -932,7 +950,7 @@
 
       for (let i = 0; i < numBars; i++) {
         const angle = (i / numBars) * Math.PI * 2 - Math.PI / 2;
-        const value = dataArray[i * step] / 255;
+        const value = smoothed[i];
         const barLen = 3 + value * radius * 0.45;
 
         const x1 = cx + Math.cos(angle) * radius;
