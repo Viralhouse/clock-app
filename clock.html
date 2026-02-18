@@ -212,6 +212,14 @@
       left: 14px;
       z-index: 20;
     }
+    #colorThemeBtn {
+      position: fixed;
+      bottom: 14px;
+      right: 14px;
+      z-index: 20;
+      font-size: 0.7rem;
+      letter-spacing: 0;
+    }
     #soundModeBtn {
       margin-top: 0.75rem;
     }
@@ -370,6 +378,7 @@
   <button class="timer-btn icon-btn hidden" id="vizColorBtn" onclick="cycleVizColor()" title="Visualizer Farbe" aria-label="Visualizer Farbe">●</button>
   <button class="timer-btn icon-btn" id="updateBtn" onclick="triggerUpdate()" title="Check for updates" aria-label="Check for updates">↻</button>
   <button class="timer-btn icon-btn" id="themeBtn" onclick="toggleTheme()" title="Toggle theme" aria-label="Toggle theme">◐</button>
+  <button class="timer-btn icon-btn" id="colorThemeBtn" onclick="cycleColorTheme()" title="Farbschema" aria-label="Farbschema">●</button>
   <button class="cancel-btn hidden" id="cancelBtn" onclick="cancelTimer()">[ abbrechen ]</button>
   <div class="playlist hidden" id="playlistPanel">
     <div class="playlist-title">LoFi Playlist (18 Tracks)</div>
@@ -553,6 +562,76 @@
 
     function toggleTheme() {
       applyTheme(theme === 'dark' ? 'light' : 'dark');
+      applyColorTheme();
+    }
+
+    const colorThemes = [
+      { name: 'Turquoise', preview: '#66ddaa',
+        dark: { bg:'#1a1a2e', clock:'#8affea', countdown:'#66ddaa', quote:'#6fffe6', accent:'#66ddaa',
+          panelTitle:'#aab4cf', panelTrack:'#dbe3ff', panelBtnText:'#d2d8ea', panelTime:'#9aa6c7' },
+        light: { bg:'#c8fff1', clock:'#06443e', countdown:'#00d7ac', quote:'#0f6f65', accent:'#00e8b8',
+          panelTitle:'#0b766c', panelTrack:'#06443e', panelBtnText:'#06443e', panelTime:'#0f7b70' }
+      },
+      { name: 'Rose', preview: '#ff6b9d',
+        dark: { bg:'#2a1a2e', clock:'#ffaacc', countdown:'#ff6b9d', quote:'#ffa0c8', accent:'#ff6b9d',
+          panelTitle:'#cfaab8', panelTrack:'#ffe3ef', panelBtnText:'#ead2de', panelTime:'#c79aaf' },
+        light: { bg:'#fff0f5', clock:'#6e1035', countdown:'#e0457a', quote:'#8e2050', accent:'#ff4d88',
+          panelTitle:'#8e2050', panelTrack:'#6e1035', panelBtnText:'#6e1035', panelTime:'#a03060' }
+      },
+      { name: 'Amber', preview: '#ffaa33',
+        dark: { bg:'#2a2218', clock:'#ffe0a0', countdown:'#ffaa33', quote:'#ffc966', accent:'#ffaa33',
+          panelTitle:'#cfbf9a', panelTrack:'#fff0d0', panelBtnText:'#eadcc2', panelTime:'#c7b08a' },
+        light: { bg:'#fff8e8', clock:'#5a3e00', countdown:'#d08800', quote:'#6e4e10', accent:'#ee9900',
+          panelTitle:'#6e4e10', panelTrack:'#5a3e00', panelBtnText:'#5a3e00', panelTime:'#7e5e20' }
+      },
+      { name: 'Ocean', preview: '#4499ff',
+        dark: { bg:'#161a2e', clock:'#88ccff', countdown:'#4499ff', quote:'#77bbff', accent:'#4499ff',
+          panelTitle:'#9ab4df', panelTrack:'#d0e4ff', panelBtnText:'#c0d4f0', panelTime:'#8aa4cf' },
+        light: { bg:'#e8f4ff', clock:'#0a3060', countdown:'#2277dd', quote:'#1a4a80', accent:'#2288ee',
+          panelTitle:'#1a4a80', panelTrack:'#0a3060', panelBtnText:'#0a3060', panelTime:'#2a5a90' }
+      },
+      { name: 'Lavender', preview: '#aa77ff',
+        dark: { bg:'#1e1a2e', clock:'#ccaaff', countdown:'#aa77ff', quote:'#bb99ff', accent:'#aa77ff',
+          panelTitle:'#b4a4df', panelTrack:'#e4d8ff', panelBtnText:'#d4c8f0', panelTime:'#a494cf' },
+        light: { bg:'#f4eeff', clock:'#3a1a6e', countdown:'#7744cc', quote:'#4e2888', accent:'#8855ee',
+          panelTitle:'#4e2888', panelTrack:'#3a1a6e', panelBtnText:'#3a1a6e', panelTime:'#5e3898' }
+      },
+      { name: 'Sakura', preview: '#ff88aa',
+        dark: { bg:'#2a1a24', clock:'#ffccdd', countdown:'#ff88aa', quote:'#ffaacc', accent:'#ff88aa',
+          panelTitle:'#cfaabb', panelTrack:'#ffe8f0', panelBtnText:'#ead0dd', panelTime:'#c7a0b5' },
+        light: { bg:'#fff5f8', clock:'#5e1830', countdown:'#dd5577', quote:'#7e2848', accent:'#ee6688',
+          panelTitle:'#7e2848', panelTrack:'#5e1830', panelBtnText:'#5e1830', panelTime:'#8e3858' }
+      }
+    ];
+    let colorThemeIndex = 0;
+
+    function cycleColorTheme() {
+      colorThemeIndex = (colorThemeIndex + 1) % colorThemes.length;
+      applyColorTheme();
+      try { localStorage.setItem('clock_color_theme', colorThemeIndex); } catch (_) {}
+    }
+
+    function applyColorTheme() {
+      const ct = colorThemes[colorThemeIndex];
+      const vars = theme === 'light' ? ct.light : ct.dark;
+      const root = document.documentElement;
+      root.style.setProperty('--bg', vars.bg);
+      root.style.setProperty('--clock', vars.clock);
+      root.style.setProperty('--countdown', vars.countdown);
+      root.style.setProperty('--quote', vars.quote);
+      root.style.setProperty('--accent', vars.accent);
+      root.style.setProperty('--panel-title', vars.panelTitle);
+      root.style.setProperty('--panel-track', vars.panelTrack);
+      root.style.setProperty('--panel-btn-text', vars.panelBtnText);
+      root.style.setProperty('--panel-time', vars.panelTime);
+      updateColorThemeButton();
+    }
+
+    function updateColorThemeButton() {
+      const btn = document.getElementById('colorThemeBtn');
+      const ct = colorThemes[colorThemeIndex];
+      btn.style.color = ct.preview;
+      btn.title = 'Farbe: ' + ct.name;
     }
 
     function toggleSoundMode() {
@@ -1380,9 +1459,12 @@
     }
 
     try {
+      colorThemeIndex = parseInt(localStorage.getItem('clock_color_theme')) || 0;
       applyTheme(localStorage.getItem('clock_theme') || 'dark');
+      applyColorTheme();
     } catch (_) {
       applyTheme('dark');
+      applyColorTheme();
     }
     updateClock();
     initShuffle(true);
