@@ -971,7 +971,7 @@
 
       const cx = W / 2;
       const cy = H / 2;
-      const radius = Math.min(W, H) * 0.42;
+      const radius = Math.min(W, H) * 0.44;
       const numBars = 128;
 
       // Get accent color from CSS variable
@@ -992,35 +992,37 @@
       const dataArray = new Uint8Array(analyser.frequencyBinCount);
       analyser.getByteFrequencyData(dataArray);
 
-      // Map bins logarithmically so low frequencies don't dominate
+      // Even bin distribution: spread all frequency bins equally across bars
       const binCount = dataArray.length;
       const barValues = new Float32Array(numBars);
+      const binsPerBar = binCount / numBars;
       for (let i = 0; i < numBars; i++) {
-        const t = i / numBars;
-        const logStart = Math.floor(Math.pow(t, 2.5) * binCount);
-        const logEnd = Math.max(logStart + 1, Math.floor(Math.pow((i + 1) / numBars, 2.5) * binCount));
+        const start = Math.floor(i * binsPerBar);
+        const end = Math.floor((i + 1) * binsPerBar);
         let sum = 0;
-        for (let b = logStart; b < logEnd && b < binCount; b++) sum += dataArray[b];
-        barValues[i] = sum / (logEnd - logStart) / 255;
+        for (let b = start; b < end; b++) sum += dataArray[b];
+        barValues[i] = sum / (end - start) / 255;
       }
 
-      // Normalize: compress dynamic range so all bars are more even
-      let maxVal = 0;
-      for (let i = 0; i < numBars; i++) if (barValues[i] > maxVal) maxVal = barValues[i];
-      if (maxVal > 0) {
-        for (let i = 0; i < numBars; i++) barValues[i] /= maxVal;
-      }
-      // Apply sqrt compression to bring quieter bars closer to loud ones
-      for (let i = 0; i < numBars; i++) barValues[i] = Math.sqrt(barValues[i]);
+      // Compute average amplitude as baseline for all bars
+      let avg = 0;
+      for (let i = 0; i < numBars; i++) avg += barValues[i];
+      avg /= numBars;
 
-      // Smooth neighbors (wider kernel) for homogeneous look
+      // Blend each bar toward the average so all bars react similarly
+      const blendFactor = 0.7;
+      for (let i = 0; i < numBars; i++) {
+        barValues[i] = avg * blendFactor + barValues[i] * (1 - blendFactor);
+      }
+
+      // Smooth with wide kernel for organic look
       const smoothed = new Float32Array(numBars);
       for (let i = 0; i < numBars; i++) {
-        const p2 = barValues[(i - 2 + numBars) % numBars];
-        const p1 = barValues[(i - 1 + numBars) % numBars];
-        const n1 = barValues[(i + 1) % numBars];
-        const n2 = barValues[(i + 2) % numBars];
-        smoothed[i] = barValues[i] * 0.3 + (p1 + n1) * 0.2 + (p2 + n2) * 0.05;
+        let sum = 0;
+        for (let k = -3; k <= 3; k++) {
+          sum += barValues[(i + k + numBars) % numBars];
+        }
+        smoothed[i] = sum / 7;
       }
 
       ctx.save();
@@ -1036,8 +1038,8 @@
       for (let i = 0; i < numBars; i++) {
         const angle = (i / numBars) * Math.PI * 2 - Math.PI / 2;
         const value = smoothed[i];
-        const maxBarLen = (Math.min(W, H) / 2) - radius - 12;
-        const barLen = 2 + value * maxBarLen * 0.7;
+        const maxBarLen = (Math.min(W, H) / 2) - radius - 20;
+        const barLen = 2 + value * maxBarLen * 0.6;
 
         const x1 = cx + Math.cos(angle) * radius;
         const y1 = cy + Math.sin(angle) * radius;
