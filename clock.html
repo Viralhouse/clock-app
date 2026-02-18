@@ -187,6 +187,19 @@
       right: 14px;
       z-index: 20;
     }
+    #vizToggleBtn {
+      position: fixed;
+      top: 58px;
+      right: 14px;
+      z-index: 20;
+    }
+    #vizColorBtn {
+      position: fixed;
+      top: 102px;
+      right: 14px;
+      z-index: 20;
+      font-size: 0.75rem;
+    }
     #updateBtn {
       position: fixed;
       bottom: 14px;
@@ -318,6 +331,8 @@
   </div>
   <button class="timer-btn hidden" id="soundModeBtn" onclick="toggleSoundMode()">Sound: Rain</button>
   <button class="timer-btn icon-btn hidden" id="muteBtn" onclick="toggleMute()" title="Toggle mute" aria-label="Toggle mute">🔊</button>
+  <button class="timer-btn icon-btn hidden" id="vizToggleBtn" onclick="toggleViz()" title="Visualizer an/aus" aria-label="Visualizer an/aus">◉</button>
+  <button class="timer-btn icon-btn hidden" id="vizColorBtn" onclick="cycleVizColor()" title="Visualizer Farbe" aria-label="Visualizer Farbe">●</button>
   <button class="timer-btn icon-btn" id="updateBtn" onclick="triggerUpdate()" title="Check for updates" aria-label="Check for updates">↻</button>
   <button class="timer-btn icon-btn" id="themeBtn" onclick="toggleTheme()" title="Toggle theme" aria-label="Toggle theme">◐</button>
   <button class="cancel-btn hidden" id="cancelBtn" onclick="cancelTimer()">[ abbrechen ]</button>
@@ -400,6 +415,9 @@
     let lofiAudioCtx = null;
     let lofiMediaSource = null;
     let vizAnimId = null;
+    let vizEnabled = true;
+    const vizColorModes = ['accent', 'rainbow', 'fire', 'ocean', 'purple'];
+    let vizColorIndex = 0;
 
     function initQuoteOrder(keepCurrent = false) {
       quoteOrder = Array.from({ length: quotes.length }, (_, i) => i);
@@ -866,8 +884,59 @@
     }
 
     // --- Visualizer ---
+    function toggleViz() {
+      vizEnabled = !vizEnabled;
+      updateVizButtons();
+      if (timerInterval) {
+        if (vizEnabled) startVisualizer();
+        else stopVisualizer();
+      }
+    }
+
+    function cycleVizColor() {
+      vizColorIndex = (vizColorIndex + 1) % vizColorModes.length;
+      updateVizButtons();
+    }
+
+    function updateVizButtons() {
+      const toggleBtn = document.getElementById('vizToggleBtn');
+      toggleBtn.textContent = vizEnabled ? '◉' : '◯';
+      toggleBtn.title = vizEnabled ? 'Visualizer aus' : 'Visualizer an';
+      const colorBtn = document.getElementById('vizColorBtn');
+      const mode = vizColorModes[vizColorIndex];
+      const previewColors = { accent: 'var(--accent)', rainbow: '#ff4488', fire: '#ff6622', ocean: '#22aaff', purple: '#bb66ff' };
+      colorBtn.style.color = previewColors[mode] || 'var(--accent)';
+      colorBtn.title = 'Farbe: ' + mode.charAt(0).toUpperCase() + mode.slice(1);
+    }
+
+    function getVizColor(barIndex, numBars, value) {
+      const mode = vizColorModes[vizColorIndex];
+      const t = barIndex / numBars;
+      switch (mode) {
+        case 'rainbow': {
+          const hue = (t * 360 + Date.now() * 0.03) % 360;
+          return `hsl(${hue}, 85%, 60%)`;
+        }
+        case 'fire': {
+          const hue = 10 + value * 30;
+          return `hsl(${hue}, 100%, ${45 + value * 20}%)`;
+        }
+        case 'ocean': {
+          const hue = 190 + t * 40;
+          return `hsl(${hue}, 80%, ${45 + value * 25}%)`;
+        }
+        case 'purple': {
+          const hue = 260 + t * 40;
+          return `hsl(${hue}, 75%, ${50 + value * 20}%)`;
+        }
+        default:
+          return null; // use accent
+      }
+    }
+
     function startVisualizer() {
       if (vizAnimId) return;
+      if (!vizEnabled) return;
       const canvas = document.getElementById('visualizer');
       canvas.style.display = 'block';
       drawVisualizer();
@@ -909,9 +978,10 @@
       const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
 
       // Draw base ring
+      const baseColor = getVizColor(0, 1, 0) || accent;
       ctx.beginPath();
       ctx.arc(cx, cy, radius, 0, Math.PI * 2);
-      ctx.strokeStyle = accent;
+      ctx.strokeStyle = baseColor;
       ctx.globalAlpha = 0.15;
       ctx.lineWidth = 1;
       ctx.stroke();
@@ -954,10 +1024,14 @@
       }
 
       ctx.save();
-      ctx.shadowColor = accent;
-      ctx.shadowBlur = 8;
-      ctx.strokeStyle = accent;
       ctx.lineWidth = 2.5;
+
+      const isAccentMode = vizColorModes[vizColorIndex] === 'accent';
+      if (isAccentMode) {
+        ctx.shadowColor = accent;
+        ctx.shadowBlur = 8;
+        ctx.strokeStyle = accent;
+      }
 
       for (let i = 0; i < numBars; i++) {
         const angle = (i / numBars) * Math.PI * 2 - Math.PI / 2;
@@ -970,6 +1044,12 @@
         const x2 = cx + Math.cos(angle) * (radius + barLen);
         const y2 = cy + Math.sin(angle) * (radius + barLen);
 
+        if (!isAccentMode) {
+          const color = getVizColor(i, numBars, value);
+          ctx.strokeStyle = color;
+          ctx.shadowColor = color;
+          ctx.shadowBlur = 8;
+        }
         ctx.globalAlpha = 0.3 + value * 0.7;
         ctx.beginPath();
         ctx.moveTo(x1, y1);
@@ -990,6 +1070,8 @@
       document.getElementById('cancelBtn').classList.remove('hidden');
       document.getElementById('soundModeBtn').classList.remove('hidden');
       document.getElementById('muteBtn').classList.remove('hidden');
+      document.getElementById('vizToggleBtn').classList.remove('hidden');
+      document.getElementById('vizColorBtn').classList.remove('hidden');
       updatePlaylistVisibility();
 
       notifyFocus('start');
@@ -1022,6 +1104,8 @@
       document.getElementById('cancelBtn').classList.add('hidden');
       document.getElementById('soundModeBtn').classList.add('hidden');
       document.getElementById('muteBtn').classList.add('hidden');
+      document.getElementById('vizToggleBtn').classList.add('hidden');
+      document.getElementById('vizColorBtn').classList.add('hidden');
       document.getElementById('playlistPanel').classList.add('hidden');
       updateClock();
 
@@ -1041,6 +1125,8 @@
       document.getElementById('cancelBtn').classList.add('hidden');
       document.getElementById('soundModeBtn').classList.add('hidden');
       document.getElementById('muteBtn').classList.add('hidden');
+      document.getElementById('vizToggleBtn').classList.add('hidden');
+      document.getElementById('vizColorBtn').classList.add('hidden');
       document.getElementById('playlistPanel').classList.add('hidden');
       updateClock();
 
@@ -1121,6 +1207,7 @@
     window.handleNativeUpdateState = handleNativeUpdateState;
     initLofiAudioContext();
     updateSoundButton();
+    updateVizButtons();
     setInterval(updateClock, 1000);
     showQuote();
     setInterval(showQuote, 60 * 1000);
