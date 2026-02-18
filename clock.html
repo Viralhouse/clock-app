@@ -573,40 +573,25 @@
       btn.setAttribute('aria-label', isMuted ? 'Unmute' : 'Mute');
     }
 
-    function applyRainMuteState() {
-      if (!rainCtx || rainNodes.length < 9) return;
-      const gain = rainNodes[3];
-      const patterGain = rainNodes[8];
-      const now = rainCtx.currentTime;
-      const v = isMuted ? 0 : volume;
-      gain.gain.cancelScheduledValues(now);
-      patterGain.gain.cancelScheduledValues(now);
-      gain.gain.linearRampToValueAtTime(0.15 * v, now + 0.1);
-      patterGain.gain.linearRampToValueAtTime(0.04 * v, now + 0.1);
-    }
+    let rainMasterGain = null;
+    let oceanMasterGain = null;
 
-    function applyOceanMuteState() {
-      if (!oceanCtx || oceanNodes.length < 2) return;
-      const gain = oceanNodes[0];
-      const now = oceanCtx.currentTime;
+    function applyVolumeAll() {
       const v = isMuted ? 0 : volume;
-      gain.gain.cancelScheduledValues(now);
-      gain.gain.linearRampToValueAtTime(0.25 * v, now + 0.1);
+      if (rainMasterGain) rainMasterGain.gain.value = v;
+      if (oceanMasterGain) oceanMasterGain.gain.value = v;
+      lofiAudio.volume = isMuted ? 0 : volume;
     }
 
     function toggleMute() {
       isMuted = !isMuted;
-      lofiAudio.muted = isMuted;
-      applyRainMuteState();
-      applyOceanMuteState();
+      applyVolumeAll();
       updateMuteButton();
     }
 
     function setVolume(val) {
       volume = val / 100;
-      lofiAudio.volume = volume;
-      applyRainMuteState();
-      applyOceanMuteState();
+      applyVolumeAll();
     }
 
     function triggerUpdate() {
@@ -818,7 +803,7 @@
 
       const gain = rainCtx.createGain();
       gain.gain.value = 0;
-      gain.gain.linearRampToValueAtTime(isMuted ? 0 : 0.15 * volume, rainCtx.currentTime + 2);
+      gain.gain.linearRampToValueAtTime(0.15, rainCtx.currentTime + 2);
       lfoGain.connect(gain.gain); // modulate the main gain
 
       rainAnalyser = rainCtx.createAnalyser();
@@ -827,8 +812,11 @@
       noiseSource.connect(bandpass);
       bandpass.connect(highpass);
       highpass.connect(gain);
+      rainMasterGain = rainCtx.createGain();
+      rainMasterGain.gain.value = isMuted ? 0 : volume;
       gain.connect(rainAnalyser);
-      rainAnalyser.connect(rainCtx.destination);
+      rainAnalyser.connect(rainMasterGain);
+      rainMasterGain.connect(rainCtx.destination);
       noiseSource.start();
       lfo.start();
 
@@ -853,7 +841,7 @@
 
       const patterGain = rainCtx.createGain();
       patterGain.gain.value = 0;
-      patterGain.gain.linearRampToValueAtTime(isMuted ? 0 : 0.04 * volume, rainCtx.currentTime + 2);
+      patterGain.gain.linearRampToValueAtTime(0.04, rainCtx.currentTime + 2);
 
       patterSource.connect(patterFilter);
       patterFilter.connect(patterGain);
@@ -873,7 +861,7 @@
     }
 
     function playDrop() {
-      if (!rainCtx || isMuted) return;
+      if (!rainCtx) return;
       const osc = rainCtx.createOscillator();
       const g = rainCtx.createGain();
       const freq = 2000 + Math.random() * 4000;
@@ -905,6 +893,7 @@
         rainCtx = null;
         rainNodes = [];
         rainAnalyser = null;
+        rainMasterGain = null;
       }, 2000);
     }
 
@@ -917,13 +906,16 @@
       // Main gain node (stored at index 0)
       const mainGain = oceanCtx.createGain();
       mainGain.gain.value = 0;
-      mainGain.gain.linearRampToValueAtTime(isMuted ? 0 : 0.25 * volume, oceanCtx.currentTime + 2);
+      mainGain.gain.linearRampToValueAtTime(0.25, oceanCtx.currentTime + 2);
 
-      // Analyser
+      // Analyser + master volume
       oceanAnalyser = oceanCtx.createAnalyser();
       oceanAnalyser.fftSize = 256;
+      oceanMasterGain = oceanCtx.createGain();
+      oceanMasterGain.gain.value = isMuted ? 0 : volume;
       mainGain.connect(oceanAnalyser);
-      oceanAnalyser.connect(oceanCtx.destination);
+      oceanAnalyser.connect(oceanMasterGain);
+      oceanMasterGain.connect(oceanCtx.destination);
 
       // Layer 1: Deep ocean rumble (low-pass filtered brown noise)
       const deepBuf = oceanCtx.createBuffer(2, bufferSize, sr);
@@ -1026,12 +1018,12 @@
         oceanCtx = null;
         oceanNodes = [];
         oceanAnalyser = null;
+        oceanMasterGain = null;
       }, 2000);
     }
 
     function startLofi() {
-      lofiAudio.muted = isMuted;
-      lofiAudio.volume = volume;
+      lofiAudio.volume = isMuted ? 0 : volume;
       lofiAudio.play().then(updateLofiPlayButton).catch(() => {
         soundMode = 'rain';
         updateSoundButton();
