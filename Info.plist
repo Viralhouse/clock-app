@@ -3,11 +3,11 @@
 <plist version="1.0">
 <dict>
   <key>CFBundleExecutable</key>
-  <string>Clock</string>
+  <string>DeepTide</string>
   <key>CFBundleName</key>
-  <string>Clock</string>
+  <string>DeepTide</string>
   <key>CFBundleIdentifier</key>
-  <string>com.vincentjutte.clock</string>
+  <string>com.vincentjutte.deeptide</string>
   <key>CFBundleVersion</key>
   <string>1.0</string>
   <key>CFBundleShortVersionString</key>
@@ -16,9 +16,9 @@
   <string>APPL</string>
   <key>CFBundleIconFile</key>
   <string>AppIcon.icns</string>
-  <key>ClockUpdateRepo</key>
+  <key>DeepTideUpdateRepo</key>
   <string>Viralhouse/clock-app</string>
   <key>NSAppleEventsUsageDescription</key>
-  <string>Clock benötigt Zugriff auf System Events um "Nicht stören" automatisch zu steuern.</string>
+  <string>DeepTide benötigt Zugriff auf System Events um "Nicht stören" automatisch zu steuern.</string>
 </dict>
 </plist>

@@ -2,8 +2,8 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-SOURCE_APP="${1:-$ROOT_DIR/dist/Clock.app}"
-TARGET_APP="/Applications/Clock.app"
+SOURCE_APP="${1:-$ROOT_DIR/dist/DeepTide.app}"
+TARGET_APP="/Applications/DeepTide.app"
 
 if [[ ! -d "$SOURCE_APP" ]]; then
   echo "Source app not found: $SOURCE_APP" >&2
@@ -19,5 +19,5 @@ xattr -dr com.apple.quarantine "$TARGET_APP" 2>/dev/null || true
 
 echo "Installed: $TARGET_APP"
 echo "Open it once, then allow:"
-echo "1) Privacy & Security -> Accessibility -> Clock"
-echo "2) Privacy & Security -> Automation -> Clock -> System Events"
+echo "1) Privacy & Security -> Accessibility -> DeepTide"
+echo "2) Privacy & Security -> Automation -> DeepTide -> System Events"

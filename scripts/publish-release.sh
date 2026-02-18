@@ -16,13 +16,13 @@ TAG="v$VERSION"
 
 ./scripts/make-release.sh "$VERSION" "$BUILD_NUM"
 
-ZIP_PATH="$ROOT_DIR/dist/release/Clock.app.zip"
+ZIP_PATH="$ROOT_DIR/dist/release/DeepTide.app.zip"
 NOTES_PATH="$ROOT_DIR/dist/release/release-notes.txt"
 
 gh release create "$TAG" \
   "$ZIP_PATH" \
   --repo "$REPO" \
-  --title "Clock $VERSION" \
+  --title "DeepTide $VERSION" \
   --notes-file "$NOTES_PATH"
 
 echo "Release published: $TAG"

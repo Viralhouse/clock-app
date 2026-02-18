@@ -1,20 +1,23 @@
-# Handover: Clock App (Status 2026-02-17)
+# Handover: DeepTide App (Status 2026-02-18)
 
 ## Current Product State
-- Focus timer UI + quote rotation + rain ambience + 10-track LoFi playlist are implemented.
+- Focus timer UI + quote rotation + rain/ocean ambience + 17-track LoFi playlist are implemented.
+- Circular sound visualizer with color modes and on/off toggle.
+- 6 color themes (Turquoise, Rose, Amber, Ocean, Lavender, Sakura) with gradient backgrounds.
+- Volume slider and mute button for all sound modes.
 - Focus toggle works via **Shortcuts CLI first**:
   - `shortcuts run FocusOn`
   - `shortcuts run FocusOff`
 - AppleScript UI automation remains as fallback if shortcuts fail.
 - App now loads bundled web assets from:
-  - `Clock.app/Contents/Resources/Web/clock.html`
-  - `Clock.app/Contents/Resources/Web/audio/lofi/*`
-- In-app update button (`↻`, top-left) is implemented and wired to GitHub latest release download/install.
+  - `DeepTide.app/Contents/Resources/Web/deeptide.html`
+  - `DeepTide.app/Contents/Resources/Web/audio/lofi/*`
+- In-app update button (`↻`, bottom-left) is implemented and wired to GitHub latest release download/install.
 
 ## Critical Requirements on Target Mac
 1. macOS permissions:
-   - Privacy & Security -> Accessibility -> `Clock` enabled
-   - Privacy & Security -> Automation -> `Clock` -> `System Events` enabled
+   - Privacy & Security -> Accessibility -> `DeepTide` enabled
+   - Privacy & Security -> Automation -> `DeepTide` -> `System Events` enabled
 2. Required shortcuts must exist:
    - `FocusOn` = Set Focus -> Do Not Disturb -> On
    - `FocusOff` = Set Focus -> Do Not Disturb -> Off
@@ -25,7 +28,7 @@
   - `./scripts/build-app-bundle.sh <version> [build_num]`
 - Build shareable zip:
   - `./scripts/make-release.sh <version> [build_num]`
-  - Output: `dist/release/Clock.app.zip`
+  - Output: `dist/release/DeepTide.app.zip`
 - Publish GitHub release:
   - `./scripts/publish-release.sh <version> [build_num]`
 - Local install helper:
@@ -34,7 +37,7 @@
   - `./scripts/update-clock.sh`
 
 ## In-App Update Notes
-- In-app updater expects `Clock.app.zip` asset in latest GitHub release.
+- In-app updater expects `DeepTide.app.zip` asset in latest GitHub release.
 - Repo is currently private; without token, API may return 404.
 - Easiest setup: public releases (or token-in-environment strategy).
 
@@ -45,12 +48,12 @@
 - `scripts/install-clock.sh`
 - `scripts/update-clock.sh`
 - `DISTRIBUTION.md`
-- `ClockApp.swift` (bundle loading, shortcut checks, updater backend)
-- `clock.html` (update button + existing timer/audio features)
-- `Info.plist` (`ClockUpdateRepo`, version fields)
+- `DeepTideApp.swift` (bundle loading, shortcut checks, updater backend)
+- `deeptide.html` (update button + timer/audio/visualizer features)
+- `Info.plist` (`DeepTideUpdateRepo`, version fields)
 
 ## Verified Locally
-- Friend-like install simulation from `Clock.app.zip` to `/Applications/Clock.app`
-- App runs with bundled assets even if local project `clock.html`/`audio` are temporarily removed.
+- Friend-like install simulation from `DeepTide.app.zip` to `/Applications/DeepTide.app`
+- App runs with bundled assets even if local project `deeptide.html`/`audio` are temporarily removed.
 - Debug log confirms bundled path load:
-  - `/Applications/Clock.app/Contents/Resources/Web/clock.html`
+  - `/Applications/DeepTide.app/Contents/Resources/Web/deeptide.html`

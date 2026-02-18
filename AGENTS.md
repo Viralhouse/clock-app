@@ -1,32 +1,27 @@
 # Repository Guidelines
 
 ## Project Structure & Module Organization
-This repository is a lightweight macOS clock/focus app with a web UI.
+This repository is DeepTide, a macOS deep work timer app with a web UI.
 
-- `ClockApp.swift`: Native macOS host app (`Cocoa` + `WebKit`) and JS bridge for focus/DND actions.
-- `clock.html`: Frontend timer UI, audio logic, and interaction code loaded by the Swift app.
+- `DeepTideApp.swift`: Native macOS host app (`Cocoa` + `WebKit`) and JS bridge for focus/DND actions.
+- `deeptide.html`: Frontend timer UI, audio logic, visualizer, and interaction code loaded by the Swift app.
 - `Info.plist`: App metadata and runtime permissions for the bundled app.
-- `ClockApp`: Compiled binary artifact; treat as build output, not source of truth.
 - `HANDOVER.md`: Operational notes and troubleshooting context.
 
-Keep app logic in `ClockApp.swift` and UI/audio behavior in `clock.html`.
+Keep app logic in `DeepTideApp.swift` and UI/audio behavior in `deeptide.html`.
 
 ## Build, Test, and Development Commands
 - Build native app binary:
   ```bash
-  swiftc ClockApp.swift -o /tmp/ClockApp -framework Cocoa -framework WebKit
+  swiftc DeepTideApp.swift -o /tmp/DeepTideApp -framework Cocoa -framework WebKit
   ```
 - Run binary directly for local verification:
   ```bash
-  /tmp/ClockApp
-  ```
-- Update bundled app binary (local machine path):
-  ```bash
-  cp /tmp/ClockApp "/Users/vincentjutte/Applications/Clock.app/Contents/MacOS/ClockApp"
+  /tmp/DeepTideApp
   ```
 - Re-sign app bundle after binary or plist changes:
   ```bash
-  codesign --force --deep --sign - /Users/vincentjutte/Applications/Clock.app
+  codesign --force --deep --sign - /path/to/DeepTide.app
   ```
 
 ## Coding Style & Naming Conventions
@@ -38,7 +33,7 @@ Keep app logic in `ClockApp.swift` and UI/audio behavior in `clock.html`.
 ## Testing Guidelines
 There is no automated test suite yet. Use manual validation for each change:
 
-1. Launch the app and verify `clock.html` loads.
+1. Launch the app and verify `deeptide.html` loads.
 2. Start timer and confirm focus/DND enable flow.
 3. Stop timer and confirm focus/DND disable flow.
 4. Validate audio controls and timer behavior in UI.
@@ -46,8 +41,6 @@ There is no automated test suite yet. Use manual validation for each change:
 If adding tests later, place Swift tests under `Tests/` and name files `*Tests.swift`.
 
 ## Commit & Pull Request Guidelines
-No git history is available in this workspace, so use this default convention:
-
 - Commit format: `type(scope): short summary` (e.g., `fix(dnd): handle missing focus menu item`).
 - Keep commits small and single-purpose.
 - PRs should include: problem statement, change summary, manual test steps, and screenshots/GIFs for UI changes.

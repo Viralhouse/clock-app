@@ -1,0 +1,1499 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DeepTide</title>
+  <style>
+    :root {
+      --bg: #1a1a2e;
+      --clock: #8affea;
+      --countdown: #66ddaa;
+      --quote: #6fffe6;
+      --btn-bg: rgba(255,255,255,0.08);
+      --btn-border: rgba(255,255,255,0.15);
+      --btn-text: #c0c0d0;
+      --btn-bg-hover: rgba(255,255,255,0.15);
+      --btn-border-hover: rgba(255,255,255,0.3);
+      --input-bg: rgba(255,255,255,0.06);
+      --input-border: rgba(255,255,255,0.15);
+      --input-text: #c0c0d0;
+      --input-placeholder: #555566;
+      --input-border-focus: rgba(255,255,255,0.35);
+      --cancel: #665566;
+      --cancel-hover: #aa6666;
+      --panel-bg: rgba(255,255,255,0.05);
+      --panel-border: rgba(255,255,255,0.14);
+      --panel-title: #aab4cf;
+      --panel-track: #dbe3ff;
+      --panel-btn-bg: rgba(255,255,255,0.1);
+      --panel-btn-border: rgba(255,255,255,0.2);
+      --panel-btn-text: #d2d8ea;
+      --panel-progress-bg: rgba(255,255,255,0.12);
+      --panel-time: #9aa6c7;
+      --accent: #66ddaa;
+    }
+    body.light {
+      --bg: #c8fff1;
+      --clock: #06443e;
+      --countdown: #00d7ac;
+      --quote: #0f6f65;
+      --btn-bg: rgba(0,128,112,0.10);
+      --btn-border: rgba(0,102,90,0.42);
+      --btn-text: #075750;
+      --btn-bg-hover: rgba(0,128,112,0.18);
+      --btn-border-hover: rgba(0,102,90,0.56);
+      --input-bg: rgba(0,128,112,0.08);
+      --input-border: rgba(0,102,90,0.46);
+      --input-text: #075750;
+      --input-placeholder: #2f8f83;
+      --input-border-focus: rgba(0,102,90,0.62);
+      --cancel: #1d8e81;
+      --cancel-hover: #b45757;
+      --panel-bg: rgba(0,128,112,0.10);
+      --panel-border: rgba(0,128,112,0.22);
+      --panel-title: #0b766c;
+      --panel-track: #06443e;
+      --panel-btn-bg: rgba(0,128,112,0.12);
+      --panel-btn-border: rgba(0,128,112,0.26);
+      --panel-btn-text: #06443e;
+      --panel-progress-bg: rgba(0,128,112,0.18);
+      --panel-time: #0f7b70;
+      --accent: #00e8b8;
+    }
+    body {
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      background: var(--bg-grad, var(--bg));
+      font-family: 'Courier New', monospace;
+      transition: background 0.6s ease, color 0.25s ease;
+    }
+    #visualizer {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 0;
+      pointer-events: none;
+      display: none;
+    }
+    .clock {
+      position: relative;
+      z-index: 1;
+      color: var(--clock);
+      font-size: 6rem;
+      letter-spacing: 0.05em;
+      transition: color 0.4s;
+    }
+    .clock.countdown { color: var(--countdown); }
+    .quote-row {
+      margin-top: 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.65rem;
+      width: min(680px, 92vw);
+    }
+    .quote {
+      color: var(--quote);
+      font-size: 1.2rem;
+      width: 100%;
+      text-align: center;
+      padding: 0.9rem 1.1rem;
+      border-radius: 12px;
+      border: 1px solid color-mix(in srgb, var(--accent) 32%, transparent);
+      background: color-mix(in srgb, var(--accent) 10%, transparent);
+      box-shadow:
+        inset 0 0 0.6rem color-mix(in srgb, var(--accent) 10%, transparent),
+        0 0 1.1rem color-mix(in srgb, var(--accent) 22%, transparent);
+      line-height: 1.6;
+      transition: opacity 0.5s, border-color 0.25s, box-shadow 0.25s;
+    }
+    .quote-nav {
+      border: none;
+      background: transparent;
+      color: var(--quote);
+      font-family: 'Courier New', monospace;
+      font-size: 1.15rem;
+      line-height: 1;
+      padding: 0.2rem 0.35rem;
+      cursor: pointer;
+      opacity: 0.85;
+      transition: opacity 0.2s ease, transform 0.2s ease;
+    }
+    .quote-nav:hover {
+      opacity: 1;
+      transform: scale(1.06);
+    }
+    body.light .quote {
+      border-color: rgba(0,82,72,0.5);
+      box-shadow:
+        inset 0 0 0 1px rgba(0,82,72,0.28),
+        inset 0 0 0.6rem color-mix(in srgb, var(--accent) 10%, transparent),
+        0 0 1.1rem color-mix(in srgb, var(--accent) 22%, transparent);
+    }
+    .timer-controls {
+      margin-top: 2rem;
+      display: flex;
+      gap: 0.75rem;
+      align-items: center;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .timer-controls.hidden { display: none; }
+    .timer-btn {
+      background: var(--btn-bg);
+      border: 1px solid var(--btn-border);
+      color: var(--btn-text);
+      font-family: 'Courier New', monospace;
+      font-size: 0.95rem;
+      padding: 0.5rem 1.2rem;
+      border-radius: 6px;
+      cursor: pointer;
+      box-shadow: 0 0 0.35rem color-mix(in srgb, var(--accent) 35%, transparent);
+      transition: background 0.2s, border-color 0.2s, box-shadow 0.2s;
+    }
+    body.light .timer-btn {
+      box-shadow:
+        inset 0 0 0 1px rgba(0,82,72,0.28),
+        0 0 0.35rem color-mix(in srgb, var(--accent) 35%, transparent);
+    }
+    .timer-btn:hover {
+      background: var(--btn-bg-hover);
+      border-color: var(--btn-border-hover);
+      box-shadow:
+        0 0 0.45rem color-mix(in srgb, var(--accent) 55%, transparent),
+        0 0 0.95rem color-mix(in srgb, var(--accent) 35%, transparent);
+    }
+    .icon-btn {
+      width: 38px;
+      height: 38px;
+      padding: 0;
+      border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.05rem;
+      line-height: 1;
+    }
+    #muteBtn {
+      position: fixed;
+      top: 14px;
+      right: 14px;
+      z-index: 20;
+    }
+    #vizToggleBtn {
+      position: fixed;
+      top: 58px;
+      right: 14px;
+      z-index: 20;
+    }
+    #vizColorBtn {
+      position: fixed;
+      top: 102px;
+      right: 14px;
+      z-index: 20;
+      font-size: 0.75rem;
+    }
+    #updateBtn {
+      position: fixed;
+      bottom: 14px;
+      left: 14px;
+      z-index: 20;
+    }
+    #themeBtn {
+      position: fixed;
+      bottom: 58px;
+      left: 14px;
+      z-index: 20;
+    }
+    #colorThemeBtn {
+      position: fixed;
+      bottom: 14px;
+      right: 14px;
+      z-index: 20;
+      font-size: 0.7rem;
+      letter-spacing: 0;
+    }
+    #soundModeBtn {
+      margin-top: 0.75rem;
+    }
+    .volume-wrap {
+      position: fixed;
+      top: 14px;
+      right: 56px;
+      z-index: 20;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .volume-wrap label {
+      color: var(--btn-text);
+      font-family: 'Courier New', monospace;
+      font-size: 0.7rem;
+    }
+    #volumeSlider {
+      -webkit-appearance: none;
+      width: 80px;
+      height: 4px;
+      border-radius: 2px;
+      background: var(--btn-border);
+      outline: none;
+      cursor: pointer;
+    }
+    #volumeSlider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: var(--accent);
+      cursor: pointer;
+    }
+    .timer-input {
+      background: var(--input-bg);
+      border: 1px solid var(--input-border);
+      color: var(--input-text);
+      font-family: 'Courier New', monospace;
+      font-size: 0.95rem;
+      padding: 0.5rem 0.6rem;
+      border-radius: 6px;
+      width: 60px;
+      text-align: center;
+      outline: none;
+    }
+    body.light .timer-input {
+      box-shadow: inset 0 0 0 1px rgba(0,82,72,0.26);
+    }
+    .timer-input::placeholder { color: var(--input-placeholder); }
+    .timer-input:focus { border-color: var(--input-border-focus); }
+    .cancel-btn {
+      background: none;
+      border: none;
+      color: var(--cancel);
+      font-family: 'Courier New', monospace;
+      font-size: 0.85rem;
+      cursor: pointer;
+      margin-top: 1.5rem;
+      padding: 0.3rem 0.8rem;
+      transition: color 0.2s;
+    }
+    .cancel-btn:hover { color: var(--cancel-hover); }
+    .cancel-btn.hidden { display: none; }
+    .hidden { display: none !important; }
+    .playlist {
+      margin-top: 1rem;
+      width: min(620px, 92vw);
+      background: var(--panel-bg);
+      border: 1px solid var(--panel-border);
+      border-radius: 10px;
+      padding: 0.8rem 0.9rem;
+      box-sizing: border-box;
+    }
+    .playlist-title {
+      color: var(--panel-title);
+      font-size: 0.85rem;
+      margin-bottom: 0.5rem;
+      letter-spacing: 0.04em;
+    }
+    .playlist-track {
+      color: var(--panel-track);
+      font-size: 0.95rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin-bottom: 0.55rem;
+    }
+    .playlist-controls {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+      margin-bottom: 0.55rem;
+    }
+    .playlist-btn {
+      background: var(--panel-btn-bg);
+      border: 1px solid var(--panel-btn-border);
+      color: var(--panel-btn-text);
+      font-family: 'Courier New', monospace;
+      font-size: 0.82rem;
+      padding: 0.3rem 0.65rem;
+      border-radius: 6px;
+      cursor: pointer;
+      box-shadow: 0 0 0.3rem color-mix(in srgb, var(--accent) 30%, transparent);
+      transition: box-shadow 0.2s, border-color 0.2s;
+    }
+    .playlist-btn:hover {
+      box-shadow:
+        0 0 0.4rem color-mix(in srgb, var(--accent) 50%, transparent),
+        0 0 0.8rem color-mix(in srgb, var(--accent) 28%, transparent);
+    }
+    .playlist-progress {
+      height: 6px;
+      background: var(--panel-progress-bg);
+      border-radius: 999px;
+      cursor: pointer;
+      overflow: hidden;
+    }
+    .playlist-progress-fill {
+      height: 100%;
+      width: 0%;
+      background: var(--accent);
+      transition: width 0.1s linear;
+    }
+    .playlist-time {
+      margin-top: 0.35rem;
+      color: var(--panel-time);
+      font-size: 0.75rem;
+      text-align: right;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="visualizer"></canvas>
+  <div class="clock" id="clock"></div>
+  <div class="quote-row">
+    <button class="quote-nav" id="prevQuoteBtn" onclick="prevQuote()" aria-label="Previous quote">&lt;</button>
+    <div class="quote" id="quote"></div>
+    <button class="quote-nav" id="nextQuoteBtn" onclick="nextQuote()" aria-label="Next quote">&gt;</button>
+  </div>
+  <div class="timer-controls" id="timerControls">
+    <button class="timer-btn" onclick="startTimer(15)">15m</button>
+    <button class="timer-btn" onclick="startTimer(30)">30m</button>
+    <button class="timer-btn" onclick="startTimer(45)">45m</button>
+    <button class="timer-btn" onclick="startTimer(60)">60m</button>
+    <input class="timer-input" id="customMin" type="number" min="1" max="240" placeholder="min"
+           onkeydown="if(event.key==='Enter'){startTimer(parseInt(this.value))}">
+  </div>
+  <button class="timer-btn hidden" id="soundModeBtn" onclick="toggleSoundMode()">Sound: Rain</button>
+  <div class="volume-wrap hidden" id="volumeWrap">
+    <label for="volumeSlider">Vol</label>
+    <input type="range" id="volumeSlider" min="0" max="100" value="70" oninput="setVolume(this.value)">
+  </div>
+  <button class="timer-btn icon-btn hidden" id="muteBtn" onclick="toggleMute()" title="Toggle mute" aria-label="Toggle mute">🔊</button>
+  <button class="timer-btn icon-btn hidden" id="vizToggleBtn" onclick="toggleViz()" title="Visualizer an/aus" aria-label="Visualizer an/aus">◉</button>
+  <button class="timer-btn icon-btn hidden" id="vizColorBtn" onclick="cycleVizColor()" title="Visualizer Farbe" aria-label="Visualizer Farbe">●</button>
+  <button class="timer-btn icon-btn" id="updateBtn" onclick="triggerUpdate()" title="Check for updates" aria-label="Check for updates">↻</button>
+  <button class="timer-btn icon-btn" id="themeBtn" onclick="toggleTheme()" title="Toggle theme" aria-label="Toggle theme">◐</button>
+  <button class="timer-btn icon-btn" id="colorThemeBtn" onclick="cycleColorTheme()" title="Farbschema" aria-label="Farbschema">●</button>
+  <button class="cancel-btn hidden" id="cancelBtn" onclick="cancelTimer()">[ abbrechen ]</button>
+  <div class="playlist hidden" id="playlistPanel">
+    <div class="playlist-title">LoFi Playlist (17 Tracks)</div>
+    <div class="playlist-track" id="playlistTrackName">-</div>
+    <div class="playlist-controls">
+      <button class="playlist-btn" onclick="prevLofiTrack()">Prev</button>
+      <button class="playlist-btn" id="lofiPlayPauseBtn" onclick="toggleLofiPlayPause()">Play</button>
+      <button class="playlist-btn" onclick="nextLofiTrack()">Next</button>
+    </div>
+    <div class="playlist-progress" id="playlistProgress" onclick="seekLofi(event)">
+      <div class="playlist-progress-fill" id="playlistProgressFill"></div>
+    </div>
+    <div class="playlist-time" id="playlistTime">0:00 / 0:00</div>
+  </div>
+  <audio id="lofiAudio" preload="metadata"></audio>
+  <script>
+    const quotes = [
+      "The only way to do great work is to love what you do. — Steve Jobs",
+      "It does not matter how slowly you go as long as you do not stop. — Confucius",
+      "Believe you can and you're halfway there. — Theodore Roosevelt",
+      "Act as if what you do makes a difference. It does. — William James",
+      "What you get by achieving your goals is not as important as what you become by achieving your goals. — Zig Ziglar",
+      "Start where you are. Use what you have. Do what you can. — Arthur Ashe",
+      "Everything you've ever wanted is on the other side of fear. — George Addair",
+      "The future belongs to those who believe in the beauty of their dreams. — Eleanor Roosevelt",
+      "Hard times don't create heroes. It is during the hard times when the hero within us is revealed. — Bob Riley",
+      "Don't watch the clock; do what it does. Keep going. — Sam Levenson",
+      "You are never too old to set another goal or to dream a new dream. — C.S. Lewis",
+      "Success is not final, failure is not fatal: it is the courage to continue that counts. — Winston Churchill",
+      "In the middle of every difficulty lies opportunity. — Albert Einstein",
+      "The best time to plant a tree was 20 years ago. The second best time is now. — Chinese Proverb",
+      "Your limitation — it's only your imagination.",
+      "Push yourself, because no one else is going to do it for you.",
+      "Great things never come from comfort zones.",
+      "Dream it. Wish it. Do it.",
+      "The harder you work for something, the greater you'll feel when you achieve it.",
+      "Do something today that your future self will thank you for.",
+      "Discipline is choosing between what you want now and what you want most.",
+      "Focus on being productive, not busy.",
+      "Small progress is still progress.",
+      "Done is better than perfect.",
+      "Consistency beats intensity.",
+      "Work in silence. Let success make the noise.",
+      "One focused hour can change your whole day.",
+      "Stay patient and trust your journey.",
+      "You don't need more time. You need fewer distractions.",
+      "Momentum is built one session at a time."
+    ];
+
+    let currentQuoteIndex = -1;
+    let quoteOrder = [];
+    let timerInterval = null;
+    let timerEndTime = null;
+    let rainCtx = null;
+    let rainNodes = [];
+    let oceanCtx = null;
+    let oceanNodes = [];
+    let oceanAnalyser = null;
+    let soundMode = 'rain';
+    let isMuted = false;
+    let volume = 0.7;
+    let theme = 'dark';
+    const lofiAudio = document.getElementById('lofiAudio');
+    const lofiTracks = [
+      { name: 'Lucid Dreaming', src: 'audio/lofi/track02.mp3' },
+      { name: 'Downtown Walk', src: 'audio/lofi/track03.mp3' },
+      { name: 'Rain Book And Cup Of Tea', src: 'audio/lofi/track05.mp3' },
+      { name: 'Rooftop', src: 'audio/lofi/track06.mp3' },
+      { name: 'Morning Espresso', src: 'audio/lofi/track07.mp3' },
+      { name: 'Rain Book And Cup Of Tea Loop', src: 'audio/lofi/track08.mp3' },
+      { name: 'Dusk Horizon', src: 'audio/lofi/track09.mp3' },
+      { name: 'Hometown Rain', src: 'audio/lofi/track10.mp3' },
+      { name: 'When Time Called Me Darling', src: 'audio/lofi/track11.mp3' },
+      { name: 'Still Life', src: 'audio/lofi/track12.mp3' },
+      { name: 'Canon Event', src: 'audio/lofi/track13.mp3' },
+      { name: 'Bubbles', src: 'audio/lofi/track14.mp3' },
+      { name: 'One Night In France', src: 'audio/lofi/track15.mp3' },
+      { name: 'Tokyo Sunset', src: 'audio/lofi/track17.mp3' },
+      { name: 'Theta Frequency', src: 'audio/lofi/track18.mp3' },
+      { name: 'Waiting Around', src: 'audio/lofi/track19.mp3' },
+      { name: 'Lucid', src: 'audio/lofi/track20.mp3' }
+    ];
+    let currentLofiTrack = 0;
+    let shuffledOrder = [];
+    let shufflePos = 0;
+    let updatePending = false;
+    let rainAnalyser = null;
+    let lofiAnalyser = null;
+    let lofiAudioCtx = null;
+    let lofiMediaSource = null;
+    let vizAnimId = null;
+    let vizEnabled = true;
+    const vizColorModes = ['accent', 'rainbow', 'fire', 'ocean', 'purple'];
+    let vizColorIndex = 0;
+
+    function initQuoteOrder(keepCurrent = false) {
+      quoteOrder = Array.from({ length: quotes.length }, (_, i) => i);
+      for (let i = quoteOrder.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [quoteOrder[i], quoteOrder[j]] = [quoteOrder[j], quoteOrder[i]];
+      }
+      if (keepCurrent && currentQuoteIndex >= 0) {
+        const pos = quoteOrder.indexOf(currentQuoteIndex);
+        if (pos > 0) [quoteOrder[0], quoteOrder[pos]] = [quoteOrder[pos], quoteOrder[0]];
+      }
+    }
+
+    function showQuote(index = null) {
+      if (quoteOrder.length !== quotes.length) initQuoteOrder();
+      if (index == null) {
+        if (currentQuoteIndex === -1) {
+          currentQuoteIndex = quoteOrder[0];
+        } else {
+          let pos = quoteOrder.indexOf(currentQuoteIndex);
+          if (pos === -1) {
+            initQuoteOrder();
+            pos = 0;
+          }
+          if (pos >= quoteOrder.length - 1) {
+            initQuoteOrder(true);
+            pos = 0;
+          } else {
+            pos += 1;
+          }
+          currentQuoteIndex = quoteOrder[pos];
+        }
+      } else {
+        currentQuoteIndex = index;
+      }
+      const el = document.getElementById('quote');
+      el.style.opacity = 0;
+      setTimeout(() => {
+        el.textContent = quotes[currentQuoteIndex];
+        el.style.opacity = 1;
+      }, 500);
+    }
+
+    function nextQuote() {
+      showQuote();
+    }
+
+    function prevQuote() {
+      if (quoteOrder.length !== quotes.length) initQuoteOrder();
+      if (currentQuoteIndex === -1) {
+        currentQuoteIndex = quoteOrder[0];
+      } else {
+        let pos = quoteOrder.indexOf(currentQuoteIndex);
+        if (pos === -1) {
+          initQuoteOrder();
+          pos = 0;
+        }
+        if (pos <= 0) {
+          currentQuoteIndex = quoteOrder[quoteOrder.length - 1];
+        } else {
+          currentQuoteIndex = quoteOrder[pos - 1];
+        }
+      }
+      showQuote(currentQuoteIndex);
+    }
+
+    function updateSoundButton() {
+      const btn = document.getElementById('soundModeBtn');
+      const labels = { rain: 'Sound: Rain', ocean: 'Sound: Ocean', lofi: 'Sound: LoFi' };
+      btn.textContent = labels[soundMode] || 'Sound: Rain';
+    }
+
+    function applyTheme(nextTheme) {
+      theme = nextTheme === 'light' ? 'light' : 'dark';
+      document.body.classList.toggle('light', theme === 'light');
+      try { localStorage.setItem('deeptide_theme', theme); } catch (_) {}
+      updateThemeButton();
+    }
+
+    function updateThemeButton() {
+      const btn = document.getElementById('themeBtn');
+      btn.textContent = theme === 'dark' ? '◐' : '◑';
+      btn.title = theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode';
+      btn.setAttribute('aria-label', btn.title);
+    }
+
+    function toggleTheme() {
+      applyTheme(theme === 'dark' ? 'light' : 'dark');
+      applyColorTheme();
+    }
+
+    const colorThemes = [
+      { name: 'Turquoise', preview: '#66ddaa',
+        dark: { bg:'#1a1a2e', bgGrad:'linear-gradient(135deg, #1a1a2e 0%, #0d2b3e 50%, #162a2a 100%)',
+          clock:'#8affea', countdown:'#66ddaa', quote:'#6fffe6', accent:'#66ddaa',
+          panelTitle:'#aab4cf', panelTrack:'#dbe3ff', panelBtnText:'#d2d8ea', panelTime:'#9aa6c7' },
+        light: { bg:'#c8fff1', bgGrad:'linear-gradient(135deg, #c8fff1 0%, #e0fef8 40%, #b0f0e0 100%)',
+          clock:'#06443e', countdown:'#00d7ac', quote:'#0f6f65', accent:'#00e8b8',
+          panelTitle:'#0b766c', panelTrack:'#06443e', panelBtnText:'#06443e', panelTime:'#0f7b70' }
+      },
+      { name: 'Rose', preview: '#ff6b9d',
+        dark: { bg:'#2a1a2e', bgGrad:'linear-gradient(135deg, #2a1a2e 0%, #3d1a30 50%, #2e1a28 100%)',
+          clock:'#ffaacc', countdown:'#ff6b9d', quote:'#ffa0c8', accent:'#ff6b9d',
+          panelTitle:'#cfaab8', panelTrack:'#ffe3ef', panelBtnText:'#ead2de', panelTime:'#c79aaf' },
+        light: { bg:'#fff0f5', bgGrad:'linear-gradient(135deg, #fff0f5 0%, #ffe0ee 40%, #ffd0e8 100%)',
+          clock:'#6e1035', countdown:'#e0457a', quote:'#8e2050', accent:'#ff4d88',
+          panelTitle:'#8e2050', panelTrack:'#6e1035', panelBtnText:'#6e1035', panelTime:'#a03060' }
+      },
+      { name: 'Amber', preview: '#ffaa33',
+        dark: { bg:'#2a2218', bgGrad:'linear-gradient(135deg, #2a2218 0%, #3a2a10 50%, #2e2418 100%)',
+          clock:'#ffe0a0', countdown:'#ffaa33', quote:'#ffc966', accent:'#ffaa33',
+          panelTitle:'#cfbf9a', panelTrack:'#fff0d0', panelBtnText:'#eadcc2', panelTime:'#c7b08a' },
+        light: { bg:'#fff8e8', bgGrad:'linear-gradient(135deg, #fff8e8 0%, #fff0d0 40%, #ffe8c0 100%)',
+          clock:'#5a3e00', countdown:'#d08800', quote:'#6e4e10', accent:'#ee9900',
+          panelTitle:'#6e4e10', panelTrack:'#5a3e00', panelBtnText:'#5a3e00', panelTime:'#7e5e20' }
+      },
+      { name: 'Ocean', preview: '#4499ff',
+        dark: { bg:'#161a2e', bgGrad:'linear-gradient(135deg, #161a2e 0%, #0e1e40 50%, #141830 100%)',
+          clock:'#88ccff', countdown:'#4499ff', quote:'#77bbff', accent:'#4499ff',
+          panelTitle:'#9ab4df', panelTrack:'#d0e4ff', panelBtnText:'#c0d4f0', panelTime:'#8aa4cf' },
+        light: { bg:'#e8f4ff', bgGrad:'linear-gradient(135deg, #e8f4ff 0%, #d4eaff 40%, #c0e0ff 100%)',
+          clock:'#0a3060', countdown:'#2277dd', quote:'#1a4a80', accent:'#2288ee',
+          panelTitle:'#1a4a80', panelTrack:'#0a3060', panelBtnText:'#0a3060', panelTime:'#2a5a90' }
+      },
+      { name: 'Lavender', preview: '#aa77ff',
+        dark: { bg:'#1e1a2e', bgGrad:'linear-gradient(135deg, #1e1a2e 0%, #281a3e 50%, #221a34 100%)',
+          clock:'#ccaaff', countdown:'#aa77ff', quote:'#bb99ff', accent:'#aa77ff',
+          panelTitle:'#b4a4df', panelTrack:'#e4d8ff', panelBtnText:'#d4c8f0', panelTime:'#a494cf' },
+        light: { bg:'#f4eeff', bgGrad:'linear-gradient(135deg, #f4eeff 0%, #ece0ff 40%, #e0d4ff 100%)',
+          clock:'#3a1a6e', countdown:'#7744cc', quote:'#4e2888', accent:'#8855ee',
+          panelTitle:'#4e2888', panelTrack:'#3a1a6e', panelBtnText:'#3a1a6e', panelTime:'#5e3898' }
+      },
+      { name: 'Sakura', preview: '#ff88aa',
+        dark: { bg:'#2a1a24', bgGrad:'linear-gradient(135deg, #2a1a24 0%, #321a28 50%, #2a1826 100%)',
+          clock:'#ffccdd', countdown:'#ff88aa', quote:'#ffaacc', accent:'#ff88aa',
+          panelTitle:'#cfaabb', panelTrack:'#ffe8f0', panelBtnText:'#ead0dd', panelTime:'#c7a0b5' },
+        light: { bg:'#fff5f8', bgGrad:'linear-gradient(135deg, #fff5f8 0%, #ffe8f0 40%, #ffdde8 100%)',
+          clock:'#5e1830', countdown:'#dd5577', quote:'#7e2848', accent:'#ee6688',
+          panelTitle:'#7e2848', panelTrack:'#5e1830', panelBtnText:'#5e1830', panelTime:'#8e3858' }
+      }
+    ];
+    let colorThemeIndex = 0;
+
+    function cycleColorTheme() {
+      colorThemeIndex = (colorThemeIndex + 1) % colorThemes.length;
+      applyColorTheme();
+      try { localStorage.setItem('deeptide_color_theme', colorThemeIndex); } catch (_) {}
+    }
+
+    function applyColorTheme() {
+      const ct = colorThemes[colorThemeIndex];
+      const vars = theme === 'light' ? ct.light : ct.dark;
+      const root = document.documentElement;
+      root.style.setProperty('--bg', vars.bg);
+      root.style.setProperty('--bg-grad', vars.bgGrad);
+      root.style.setProperty('--clock', vars.clock);
+      root.style.setProperty('--countdown', vars.countdown);
+      root.style.setProperty('--quote', vars.quote);
+      root.style.setProperty('--accent', vars.accent);
+      root.style.setProperty('--panel-title', vars.panelTitle);
+      root.style.setProperty('--panel-track', vars.panelTrack);
+      root.style.setProperty('--panel-btn-text', vars.panelBtnText);
+      root.style.setProperty('--panel-time', vars.panelTime);
+      updateColorThemeButton();
+    }
+
+    function updateColorThemeButton() {
+      const btn = document.getElementById('colorThemeBtn');
+      const ct = colorThemes[colorThemeIndex];
+      btn.style.color = ct.preview;
+      btn.title = 'Farbe: ' + ct.name;
+    }
+
+    function toggleSoundMode() {
+      const modes = ['rain', 'ocean', 'lofi'];
+      soundMode = modes[(modes.indexOf(soundMode) + 1) % modes.length];
+      updateSoundButton();
+      updatePlaylistVisibility();
+      if (timerInterval) {
+        stopAmbience();
+        startAmbience();
+      }
+    }
+
+    function updateMuteButton() {
+      const btn = document.getElementById('muteBtn');
+      btn.textContent = isMuted ? '🔇' : '🔊';
+      btn.title = isMuted ? 'Unmute' : 'Mute';
+      btn.setAttribute('aria-label', isMuted ? 'Unmute' : 'Mute');
+    }
+
+    let rainMasterGain = null;
+    let oceanMasterGain = null;
+    let lofiMasterGain = null;
+
+    function applyVolumeAll() {
+      const v = isMuted ? 0 : volume;
+      if (rainMasterGain) rainMasterGain.gain.value = v;
+      if (oceanMasterGain) oceanMasterGain.gain.value = v;
+      if (lofiMasterGain) lofiMasterGain.gain.value = v;
+    }
+
+    function toggleMute() {
+      isMuted = !isMuted;
+      applyVolumeAll();
+      updateMuteButton();
+    }
+
+    function setVolume(val) {
+      volume = val / 100;
+      applyVolumeAll();
+    }
+
+    function triggerUpdate() {
+      if (updatePending) return;
+      updatePending = true;
+      setUpdateButtonBusy(true);
+      const sent = sendToSwift('update');
+      if (!sent) {
+        updatePending = false;
+        setUpdateButtonBusy(false);
+        alert('Update konnte nicht gestartet werden (Native Bridge nicht verfügbar).');
+      }
+    }
+
+    function handleNativeUpdateState(payload) {
+      if (!payload || typeof payload !== 'object') return;
+      const state = payload.state || '';
+      const message = payload.message || '';
+
+      if (state === 'started' || state === 'progress' || state === 'installing' || state === 'already_running') {
+        updatePending = true;
+        setUpdateButtonBusy(true, message || 'Checking for updates...');
+        return;
+      }
+
+      if (state === 'error') {
+        updatePending = false;
+        setUpdateButtonBusy(false);
+        if (message) alert(message);
+        return;
+      }
+
+      if (state === 'finished') {
+        updatePending = false;
+        setUpdateButtonBusy(false);
+        return;
+      }
+    }
+
+    function setUpdateButtonBusy(busy, statusText = '') {
+      const btn = document.getElementById('updateBtn');
+      if (busy) {
+        btn.textContent = '…';
+        const label = statusText || 'Checking for updates...';
+        btn.title = label;
+        btn.setAttribute('aria-label', label);
+        btn.disabled = true;
+      } else {
+        btn.textContent = '↻';
+        btn.title = 'Check for updates';
+        btn.setAttribute('aria-label', 'Check for updates');
+        btn.disabled = false;
+      }
+    }
+
+    function updatePlaylistVisibility() {
+      const panel = document.getElementById('playlistPanel');
+      panel.classList.toggle('hidden', !timerInterval || soundMode !== 'lofi');
+    }
+
+    function updateTrackDisplay() {
+      document.getElementById('playlistTrackName').textContent = lofiTracks[currentLofiTrack].name;
+    }
+
+    function updateLofiPlayButton() {
+      document.getElementById('lofiPlayPauseBtn').textContent = lofiAudio.paused ? 'Play' : 'Pause';
+    }
+
+    function formatTime(seconds) {
+      if (!Number.isFinite(seconds) || seconds < 0) return '0:00';
+      const total = Math.floor(seconds);
+      const m = Math.floor(total / 60);
+      const s = total % 60;
+      return `${m}:${String(s).padStart(2, '0')}`;
+    }
+
+    function updateLofiProgress() {
+      const current = lofiAudio.currentTime || 0;
+      const duration = lofiAudio.duration || 0;
+      const ratio = duration > 0 ? (current / duration) * 100 : 0;
+      document.getElementById('playlistProgressFill').style.width = `${ratio}%`;
+      document.getElementById('playlistTime').textContent =
+        `${formatTime(current)} / ${formatTime(duration)}`;
+    }
+
+    function createShuffledOrder() {
+      const order = Array.from({ length: lofiTracks.length }, (_, i) => i);
+      for (let i = order.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [order[i], order[j]] = [order[j], order[i]];
+      }
+      return order;
+    }
+
+    function initShuffle(randomStart = true) {
+      shuffledOrder = createShuffledOrder();
+      shufflePos = randomStart ? Math.floor(Math.random() * shuffledOrder.length) : 0;
+      currentLofiTrack = shuffledOrder[shufflePos];
+    }
+
+    function reshuffleForNext() {
+      const previousTrack = currentLofiTrack;
+      shuffledOrder = createShuffledOrder();
+      if (shuffledOrder.length > 1 && shuffledOrder[0] === previousTrack) {
+        const swapIdx = 1 + Math.floor(Math.random() * (shuffledOrder.length - 1));
+        [shuffledOrder[0], shuffledOrder[swapIdx]] = [shuffledOrder[swapIdx], shuffledOrder[0]];
+      }
+      shufflePos = 0;
+      currentLofiTrack = shuffledOrder[shufflePos];
+    }
+
+    function loadLofiTrack(position, autoplay = false) {
+      if (!shuffledOrder.length) initShuffle(true);
+      const length = shuffledOrder.length;
+      shufflePos = ((position % length) + length) % length;
+      currentLofiTrack = shuffledOrder[shufflePos];
+      lofiAudio.src = lofiTracks[currentLofiTrack].src;
+      lofiAudio.load();
+      updateTrackDisplay();
+      updateLofiProgress();
+      if (autoplay) {
+        lofiAudio.play().then(updateLofiPlayButton).catch(() => updateLofiPlayButton());
+      } else {
+        updateLofiPlayButton();
+      }
+    }
+
+    function toggleLofiPlayPause() {
+      if (lofiAudio.paused) {
+        lofiAudio.play().then(updateLofiPlayButton).catch(() => updateLofiPlayButton());
+      } else {
+        lofiAudio.pause();
+        updateLofiPlayButton();
+      }
+    }
+
+    function prevLofiTrack() {
+      const shouldPlay = !lofiAudio.paused || (timerInterval && soundMode === 'lofi');
+      if (!shuffledOrder.length) initShuffle(true);
+      loadLofiTrack(shufflePos - 1, shouldPlay);
+    }
+
+    function nextLofiTrack() {
+      const shouldPlay = !lofiAudio.paused || (timerInterval && soundMode === 'lofi');
+      if (!shuffledOrder.length) initShuffle(true);
+      if (shufflePos >= shuffledOrder.length - 1) {
+        reshuffleForNext();
+        loadLofiTrack(shufflePos, shouldPlay);
+      } else {
+        loadLofiTrack(shufflePos + 1, shouldPlay);
+      }
+    }
+
+    function seekLofi(event) {
+      if (!lofiAudio.duration) return;
+      const bar = document.getElementById('playlistProgress');
+      const rect = bar.getBoundingClientRect();
+      const ratio = Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width));
+      lofiAudio.currentTime = ratio * lofiAudio.duration;
+      updateLofiProgress();
+    }
+
+    function updateClock() {
+      if (timerInterval) return;
+      document.getElementById('clock').textContent =
+        new Date().toLocaleTimeString();
+    }
+
+    // --- Rain Sound ---
+    let dropInterval = null;
+
+    function startRain() {
+      rainCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+      // Brown noise via filtered white noise (rain-like)
+      const bufferSize = 2 * rainCtx.sampleRate;
+      const buffer = rainCtx.createBuffer(2, bufferSize, rainCtx.sampleRate);
+      for (let ch = 0; ch < 2; ch++) {
+        const data = buffer.getChannelData(ch);
+        let lastOut = 0;
+        for (let i = 0; i < bufferSize; i++) {
+          const white = Math.random() * 2 - 1;
+          lastOut = (lastOut + (0.02 * white)) / 1.02;
+          data[i] = lastOut * 1.5;
+        }
+      }
+      const noiseSource = rainCtx.createBufferSource();
+      noiseSource.buffer = buffer;
+      noiseSource.loop = true;
+
+      // Bandpass filter — lower frequency for softer rain
+      const bandpass = rainCtx.createBiquadFilter();
+      bandpass.type = 'bandpass';
+      bandpass.frequency.value = 600;
+      bandpass.Q.value = 0.5;
+
+      // Highpass to remove rumble
+      const highpass = rainCtx.createBiquadFilter();
+      highpass.type = 'highpass';
+      highpass.frequency.value = 200;
+
+      // LFO for amplitude modulation (rain wave effect)
+      const lfo = rainCtx.createOscillator();
+      lfo.type = 'sine';
+      lfo.frequency.value = 0.15; // slow wave ~7 seconds
+      const lfoGain = rainCtx.createGain();
+      lfoGain.gain.value = 0.04; // modulation depth
+      lfo.connect(lfoGain);
+
+      const gain = rainCtx.createGain();
+      gain.gain.value = 0;
+      gain.gain.linearRampToValueAtTime(0.15, rainCtx.currentTime + 2);
+      lfoGain.connect(gain.gain); // modulate the main gain
+
+      rainAnalyser = rainCtx.createAnalyser();
+      rainAnalyser.fftSize = 256;
+
+      noiseSource.connect(bandpass);
+      bandpass.connect(highpass);
+      highpass.connect(gain);
+      rainMasterGain = rainCtx.createGain();
+      rainMasterGain.gain.value = isMuted ? 0 : volume;
+      gain.connect(rainAnalyser);
+      rainAnalyser.connect(rainMasterGain);
+      rainMasterGain.connect(rainCtx.destination);
+      noiseSource.start();
+      lfo.start();
+
+      rainNodes = [noiseSource, bandpass, highpass, gain, lfo, lfoGain];
+
+      // Second layer: higher pitched "patter"
+      const patterBuffer = rainCtx.createBuffer(2, bufferSize, rainCtx.sampleRate);
+      for (let ch = 0; ch < 2; ch++) {
+        const data = patterBuffer.getChannelData(ch);
+        for (let i = 0; i < bufferSize; i++) {
+          data[i] = (Math.random() * 2 - 1) * (Math.random() < 0.3 ? 1 : 0.1);
+        }
+      }
+      const patterSource = rainCtx.createBufferSource();
+      patterSource.buffer = patterBuffer;
+      patterSource.loop = true;
+
+      const patterFilter = rainCtx.createBiquadFilter();
+      patterFilter.type = 'bandpass';
+      patterFilter.frequency.value = 4000;
+      patterFilter.Q.value = 1.0;
+
+      const patterGain = rainCtx.createGain();
+      patterGain.gain.value = 0;
+      patterGain.gain.linearRampToValueAtTime(0.04, rainCtx.currentTime + 2);
+
+      patterSource.connect(patterFilter);
+      patterFilter.connect(patterGain);
+      patterGain.connect(rainAnalyser);
+      patterSource.start();
+
+      rainNodes.push(patterSource, patterFilter, patterGain);
+
+      // Third layer: sporadic raindrop sounds
+      dropInterval = setInterval(() => {
+        if (!rainCtx) return;
+        const count = Math.floor(Math.random() * 3) + 1;
+        for (let d = 0; d < count; d++) {
+          setTimeout(() => playDrop(), Math.random() * 400);
+        }
+      }, 600 + Math.random() * 800);
+    }
+
+    function playDrop() {
+      if (!rainCtx) return;
+      const osc = rainCtx.createOscillator();
+      const g = rainCtx.createGain();
+      const freq = 2000 + Math.random() * 4000;
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, rainCtx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(freq * 0.4, rainCtx.currentTime + 0.06);
+      g.gain.setValueAtTime(0.02 + Math.random() * 0.02, rainCtx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.001, rainCtx.currentTime + 0.06);
+      osc.connect(g);
+      g.connect(rainAnalyser || rainCtx.destination);
+      osc.start();
+      osc.stop(rainCtx.currentTime + 0.07);
+    }
+
+    function stopRain() {
+      if (!rainCtx) return;
+      if (dropInterval) { clearInterval(dropInterval); dropInterval = null; }
+      // Fade out main gain (index 3) and patter gain (index 8)
+      const gain = rainNodes[3];
+      const patterGain = rainNodes[8];
+      const now = rainCtx.currentTime;
+      gain.gain.cancelScheduledValues(now);
+      gain.gain.linearRampToValueAtTime(0, now + 1.5);
+      patterGain.gain.cancelScheduledValues(now);
+      patterGain.gain.linearRampToValueAtTime(0, now + 1.5);
+      setTimeout(() => {
+        rainNodes.forEach(n => { try { n.stop(); } catch(e) {} });
+        rainCtx.close();
+        rainCtx = null;
+        rainNodes = [];
+        rainAnalyser = null;
+        rainMasterGain = null;
+      }, 2000);
+    }
+
+    // --- Ocean Sound ---
+    function startOcean() {
+      oceanCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const sr = oceanCtx.sampleRate;
+      const bufferSize = 4 * sr;
+
+      // Main gain node (stored at index 0)
+      const mainGain = oceanCtx.createGain();
+      mainGain.gain.value = 0;
+      mainGain.gain.linearRampToValueAtTime(0.25, oceanCtx.currentTime + 2);
+
+      // Analyser + master volume
+      oceanAnalyser = oceanCtx.createAnalyser();
+      oceanAnalyser.fftSize = 256;
+      oceanMasterGain = oceanCtx.createGain();
+      oceanMasterGain.gain.value = isMuted ? 0 : volume;
+      mainGain.connect(oceanAnalyser);
+      oceanAnalyser.connect(oceanMasterGain);
+      oceanMasterGain.connect(oceanCtx.destination);
+
+      // Layer 1: Deep ocean rumble (low-pass filtered brown noise)
+      const deepBuf = oceanCtx.createBuffer(2, bufferSize, sr);
+      for (let ch = 0; ch < 2; ch++) {
+        const data = deepBuf.getChannelData(ch);
+        let last = 0;
+        for (let i = 0; i < bufferSize; i++) {
+          last = (last + 0.02 * (Math.random() * 2 - 1)) / 1.02;
+          data[i] = last * 2;
+        }
+      }
+      const deepSrc = oceanCtx.createBufferSource();
+      deepSrc.buffer = deepBuf;
+      deepSrc.loop = true;
+      const deepLP = oceanCtx.createBiquadFilter();
+      deepLP.type = 'lowpass';
+      deepLP.frequency.value = 300;
+      deepLP.Q.value = 0.7;
+      const deepGain = oceanCtx.createGain();
+      deepGain.gain.value = 0.6;
+      deepSrc.connect(deepLP);
+      deepLP.connect(deepGain);
+      deepGain.connect(mainGain);
+      deepSrc.start();
+
+      // Layer 2: Surf/wash (bandpassed noise with LFO for wave rhythm)
+      const surfBuf = oceanCtx.createBuffer(2, bufferSize, sr);
+      for (let ch = 0; ch < 2; ch++) {
+        const data = surfBuf.getChannelData(ch);
+        for (let i = 0; i < bufferSize; i++) {
+          data[i] = Math.random() * 2 - 1;
+        }
+      }
+      const surfSrc = oceanCtx.createBufferSource();
+      surfSrc.buffer = surfBuf;
+      surfSrc.loop = true;
+      const surfBP = oceanCtx.createBiquadFilter();
+      surfBP.type = 'bandpass';
+      surfBP.frequency.value = 1200;
+      surfBP.Q.value = 0.4;
+      const surfGain = oceanCtx.createGain();
+      surfGain.gain.value = 0.15;
+      // LFO for wave swell
+      const waveLfo = oceanCtx.createOscillator();
+      waveLfo.type = 'sine';
+      waveLfo.frequency.value = 0.08; // ~12s wave cycle
+      const waveLfoGain = oceanCtx.createGain();
+      waveLfoGain.gain.value = 0.12;
+      waveLfo.connect(waveLfoGain);
+      waveLfoGain.connect(surfGain.gain);
+      surfSrc.connect(surfBP);
+      surfBP.connect(surfGain);
+      surfGain.connect(mainGain);
+      surfSrc.start();
+      waveLfo.start();
+
+      // Layer 3: High foam/hiss
+      const foamBuf = oceanCtx.createBuffer(2, bufferSize, sr);
+      for (let ch = 0; ch < 2; ch++) {
+        const data = foamBuf.getChannelData(ch);
+        for (let i = 0; i < bufferSize; i++) {
+          data[i] = (Math.random() * 2 - 1) * (Math.random() < 0.4 ? 1 : 0.15);
+        }
+      }
+      const foamSrc = oceanCtx.createBufferSource();
+      foamSrc.buffer = foamBuf;
+      foamSrc.loop = true;
+      const foamHP = oceanCtx.createBiquadFilter();
+      foamHP.type = 'highpass';
+      foamHP.frequency.value = 3000;
+      const foamGain = oceanCtx.createGain();
+      foamGain.gain.value = 0.04;
+      // Second LFO slightly offset for natural feel
+      const foamLfo = oceanCtx.createOscillator();
+      foamLfo.type = 'sine';
+      foamLfo.frequency.value = 0.1;
+      const foamLfoGain = oceanCtx.createGain();
+      foamLfoGain.gain.value = 0.03;
+      foamLfo.connect(foamLfoGain);
+      foamLfoGain.connect(foamGain.gain);
+      foamSrc.connect(foamHP);
+      foamHP.connect(foamGain);
+      foamGain.connect(mainGain);
+      foamSrc.start();
+      foamLfo.start();
+
+      oceanNodes = [mainGain, deepSrc, deepLP, deepGain, surfSrc, surfBP, surfGain,
+                    waveLfo, waveLfoGain, foamSrc, foamHP, foamGain, foamLfo, foamLfoGain];
+    }
+
+    function stopOcean() {
+      if (!oceanCtx) return;
+      const mainGain = oceanNodes[0];
+      const now = oceanCtx.currentTime;
+      mainGain.gain.cancelScheduledValues(now);
+      mainGain.gain.linearRampToValueAtTime(0, now + 1.5);
+      setTimeout(() => {
+        oceanNodes.forEach(n => { try { n.stop(); } catch(e) {} });
+        oceanCtx.close();
+        oceanCtx = null;
+        oceanNodes = [];
+        oceanAnalyser = null;
+        oceanMasterGain = null;
+      }, 2000);
+    }
+
+    function startLofi() {
+      if (lofiMasterGain) lofiMasterGain.gain.value = isMuted ? 0 : volume;
+      lofiAudio.play().then(updateLofiPlayButton).catch(() => {
+        soundMode = 'rain';
+        updateSoundButton();
+        updatePlaylistVisibility();
+        updateLofiPlayButton();
+        startRain();
+      });
+    }
+
+    function stopLofi() {
+      lofiAudio.pause();
+      lofiAudio.currentTime = 0;
+      updateLofiPlayButton();
+      updateLofiProgress();
+    }
+
+    function startAmbience() {
+      if (soundMode === 'lofi') startLofi();
+      else if (soundMode === 'ocean') startOcean();
+      else startRain();
+    }
+
+    function stopAmbience() {
+      stopRain();
+      stopOcean();
+      stopLofi();
+    }
+
+    // --- LoFi AudioContext for analyser ---
+    function initLofiAudioContext() {
+      if (lofiAudioCtx) return;
+      lofiAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      lofiMediaSource = lofiAudioCtx.createMediaElementSource(lofiAudio);
+      lofiAnalyser = lofiAudioCtx.createAnalyser();
+      lofiAnalyser.fftSize = 256;
+      lofiMasterGain = lofiAudioCtx.createGain();
+      lofiMasterGain.gain.value = isMuted ? 0 : volume;
+      lofiMediaSource.connect(lofiAnalyser);
+      lofiAnalyser.connect(lofiMasterGain);
+      lofiMasterGain.connect(lofiAudioCtx.destination);
+    }
+
+    // --- Visualizer ---
+    function toggleViz() {
+      vizEnabled = !vizEnabled;
+      updateVizButtons();
+      if (timerInterval) {
+        if (vizEnabled) startVisualizer();
+        else stopVisualizer();
+      }
+    }
+
+    function cycleVizColor() {
+      vizColorIndex = (vizColorIndex + 1) % vizColorModes.length;
+      updateVizButtons();
+    }
+
+    function updateVizButtons() {
+      const toggleBtn = document.getElementById('vizToggleBtn');
+      toggleBtn.textContent = vizEnabled ? '◉' : '◯';
+      toggleBtn.title = vizEnabled ? 'Visualizer aus' : 'Visualizer an';
+      const colorBtn = document.getElementById('vizColorBtn');
+      const mode = vizColorModes[vizColorIndex];
+      const previewColors = { accent: 'var(--accent)', rainbow: '#ff4488', fire: '#ff6622', ocean: '#22aaff', purple: '#bb66ff' };
+      colorBtn.style.color = previewColors[mode] || 'var(--accent)';
+      colorBtn.title = 'Farbe: ' + mode.charAt(0).toUpperCase() + mode.slice(1);
+    }
+
+    function getVizColor(barIndex, numBars, value) {
+      const mode = vizColorModes[vizColorIndex];
+      const t = barIndex / numBars;
+      switch (mode) {
+        case 'rainbow': {
+          const hue = (t * 360 + Date.now() * 0.03) % 360;
+          return `hsl(${hue}, 85%, 60%)`;
+        }
+        case 'fire': {
+          const hue = 10 + value * 30;
+          return `hsl(${hue}, 100%, ${45 + value * 20}%)`;
+        }
+        case 'ocean': {
+          const hue = 190 + t * 40;
+          return `hsl(${hue}, 80%, ${45 + value * 25}%)`;
+        }
+        case 'purple': {
+          const hue = 260 + t * 40;
+          return `hsl(${hue}, 75%, ${50 + value * 20}%)`;
+        }
+        default:
+          return null; // use accent
+      }
+    }
+
+    function startVisualizer() {
+      if (vizAnimId) return;
+      if (!vizEnabled) return;
+      const canvas = document.getElementById('visualizer');
+      canvas.style.display = 'block';
+      drawVisualizer();
+    }
+
+    function stopVisualizer() {
+      if (vizAnimId) {
+        cancelAnimationFrame(vizAnimId);
+        vizAnimId = null;
+      }
+      const canvas = document.getElementById('visualizer');
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      canvas.style.display = 'none';
+    }
+
+    function drawVisualizer() {
+      vizAnimId = requestAnimationFrame(drawVisualizer);
+
+      const analyser = soundMode === 'lofi' ? lofiAnalyser : soundMode === 'ocean' ? oceanAnalyser : rainAnalyser;
+      const canvas = document.getElementById('visualizer');
+      const ctx = canvas.getContext('2d');
+      const dpr = window.devicePixelRatio || 1;
+      const W = window.innerWidth;
+      const H = window.innerHeight;
+      if (canvas.width !== W * dpr || canvas.height !== H * dpr) {
+        canvas.width = W * dpr;
+        canvas.height = H * dpr;
+        ctx.scale(dpr, dpr);
+      }
+      ctx.clearRect(0, 0, W, H);
+
+      const cx = W / 2;
+      const cy = H / 2;
+      const radius = Math.min(W, H) * 0.44;
+      const numBars = 128;
+
+      // Get accent color from CSS variable
+      const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
+
+      // Draw base ring
+      const baseColor = getVizColor(0, 1, 0) || accent;
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+      ctx.strokeStyle = baseColor;
+      ctx.globalAlpha = 0.15;
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+
+      if (!analyser) return;
+
+      const dataArray = new Uint8Array(analyser.frequencyBinCount);
+      analyser.getByteFrequencyData(dataArray);
+
+      // Even bin distribution: spread all frequency bins equally across bars
+      const binCount = dataArray.length;
+      const barValues = new Float32Array(numBars);
+      const binsPerBar = binCount / numBars;
+      for (let i = 0; i < numBars; i++) {
+        const start = Math.floor(i * binsPerBar);
+        const end = Math.floor((i + 1) * binsPerBar);
+        let sum = 0;
+        for (let b = start; b < end; b++) sum += dataArray[b];
+        barValues[i] = sum / (end - start) / 255;
+      }
+
+      // Compute average amplitude as baseline for all bars
+      let avg = 0;
+      for (let i = 0; i < numBars; i++) avg += barValues[i];
+      avg /= numBars;
+
+      // Blend each bar toward the average so all bars react similarly
+      const blendFactor = 0.7;
+      for (let i = 0; i < numBars; i++) {
+        barValues[i] = avg * blendFactor + barValues[i] * (1 - blendFactor);
+      }
+
+      // Smooth with wide kernel for organic look
+      const smoothed = new Float32Array(numBars);
+      for (let i = 0; i < numBars; i++) {
+        let sum = 0;
+        for (let k = -3; k <= 3; k++) {
+          sum += barValues[(i + k + numBars) % numBars];
+        }
+        smoothed[i] = sum / 7;
+      }
+
+      ctx.save();
+      ctx.lineWidth = 2.5;
+
+      const isAccentMode = vizColorModes[vizColorIndex] === 'accent';
+      if (isAccentMode) {
+        ctx.shadowColor = accent;
+        ctx.shadowBlur = 8;
+        ctx.strokeStyle = accent;
+      }
+
+      for (let i = 0; i < numBars; i++) {
+        const angle = (i / numBars) * Math.PI * 2 - Math.PI / 2;
+        const value = smoothed[i];
+        const maxBarLen = (Math.min(W, H) / 2) - radius - 20;
+        const barLen = 2 + Math.min(value * 4, 1) * maxBarLen * 0.6;
+
+        const x1 = cx + Math.cos(angle) * radius;
+        const y1 = cy + Math.sin(angle) * radius;
+        const x2 = cx + Math.cos(angle) * (radius + barLen);
+        const y2 = cy + Math.sin(angle) * (radius + barLen);
+
+        if (!isAccentMode) {
+          const color = getVizColor(i, numBars, value);
+          ctx.strokeStyle = color;
+          ctx.shadowColor = color;
+          ctx.shadowBlur = 8;
+        }
+        ctx.globalAlpha = 0.3 + value * 0.7;
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.stroke();
+      }
+
+      ctx.restore();
+    }
+
+    // --- Timer ---
+    function startTimer(minutes) {
+      if (!minutes || minutes < 1) return;
+      timerEndTime = Date.now() + minutes * 60 * 1000;
+      const clockEl = document.getElementById('clock');
+      clockEl.classList.add('countdown');
+      document.getElementById('timerControls').classList.add('hidden');
+      document.getElementById('cancelBtn').classList.remove('hidden');
+      document.getElementById('soundModeBtn').classList.remove('hidden');
+      document.getElementById('muteBtn').classList.remove('hidden');
+      document.getElementById('volumeWrap').classList.remove('hidden');
+      document.getElementById('vizToggleBtn').classList.remove('hidden');
+      document.getElementById('vizColorBtn').classList.remove('hidden');
+      updatePlaylistVisibility();
+
+      notifyFocus('start');
+      startAmbience();
+      startVisualizer();
+
+      timerInterval = setInterval(tickTimer, 200);
+      tickTimer();
+    }
+
+    function tickTimer() {
+      const remaining = timerEndTime - Date.now();
+      if (remaining <= 0) {
+        endTimer();
+        return;
+      }
+      const totalSec = Math.ceil(remaining / 1000);
+      const m = Math.floor(totalSec / 60);
+      const s = totalSec % 60;
+      document.getElementById('clock').textContent =
+        String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+    }
+
+    function endTimer() {
+      clearInterval(timerInterval);
+      timerInterval = null;
+      timerEndTime = null;
+      document.getElementById('clock').classList.remove('countdown');
+      document.getElementById('timerControls').classList.remove('hidden');
+      document.getElementById('cancelBtn').classList.add('hidden');
+      document.getElementById('soundModeBtn').classList.add('hidden');
+      document.getElementById('muteBtn').classList.add('hidden');
+      document.getElementById('vizToggleBtn').classList.add('hidden');
+      document.getElementById('vizColorBtn').classList.add('hidden');
+      document.getElementById('volumeWrap').classList.add('hidden');
+      document.getElementById('playlistPanel').classList.add('hidden');
+      updateClock();
+
+      notifyFocus('stop');
+      stopAmbience();
+      stopVisualizer();
+      playAlarm();
+      showNotification();
+    }
+
+    function cancelTimer() {
+      clearInterval(timerInterval);
+      timerInterval = null;
+      timerEndTime = null;
+      document.getElementById('clock').classList.remove('countdown');
+      document.getElementById('timerControls').classList.remove('hidden');
+      document.getElementById('cancelBtn').classList.add('hidden');
+      document.getElementById('soundModeBtn').classList.add('hidden');
+      document.getElementById('muteBtn').classList.add('hidden');
+      document.getElementById('vizToggleBtn').classList.add('hidden');
+      document.getElementById('vizColorBtn').classList.add('hidden');
+      document.getElementById('volumeWrap').classList.add('hidden');
+      document.getElementById('playlistPanel').classList.add('hidden');
+      updateClock();
+
+      notifyFocus('stop');
+      stopAmbience();
+      stopVisualizer();
+    }
+
+    function sendToSwift(action) {
+      try {
+        const handler = window?.webkit?.messageHandlers?.focus;
+        if (!handler) return false;
+        try {
+          handler.postMessage({ action: action });
+        } catch (_) {
+          handler.postMessage(action);
+        }
+        return true;
+      } catch (e) {}
+      return false;
+    }
+
+    function notifyFocus(action) {
+      sendToSwift(action);
+      setTimeout(() => sendToSwift(action), 180);
+    }
+
+    function playAlarm() {
+      if (isMuted) return;
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const freqs = [880, 0, 880, 0, 880, 0, 1100, 0, 880];
+      const step = 0.15;
+      freqs.forEach((freq, i) => {
+        if (freq === 0) return;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.value = freq;
+        gain.gain.setValueAtTime(0.3, ctx.currentTime + i * step);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i * step + step * 0.9);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(ctx.currentTime + i * step);
+        osc.stop(ctx.currentTime + i * step + step);
+      });
+    }
+
+    function showNotification() {
+      if (!('Notification' in window)) return;
+      if (Notification.permission === 'granted') {
+        new Notification('DeepTide', { body: 'Zeit ist um! Gute Arbeit.' });
+      } else if (Notification.permission !== 'denied') {
+        Notification.requestPermission().then(p => {
+          if (p === 'granted')
+            new Notification('DeepTide', { body: 'Zeit ist um! Gute Arbeit.' });
+        });
+      }
+    }
+
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+
+    try {
+      colorThemeIndex = parseInt(localStorage.getItem('deeptide_color_theme')) || 0;
+      applyTheme(localStorage.getItem('deeptide_theme') || 'dark');
+      applyColorTheme();
+    } catch (_) {
+      applyTheme('dark');
+      applyColorTheme();
+    }
+    updateClock();
+    initShuffle(true);
+    loadLofiTrack(shufflePos, false);
+    updateMuteButton();
+    lofiAudio.addEventListener('timeupdate', updateLofiProgress);
+    lofiAudio.addEventListener('loadedmetadata', updateLofiProgress);
+    lofiAudio.addEventListener('ended', () => nextLofiTrack());
+    lofiAudio.addEventListener('play', updateLofiPlayButton);
+    lofiAudio.addEventListener('pause', updateLofiPlayButton);
+    window.handleNativeUpdateState = handleNativeUpdateState;
+    initLofiAudioContext();
+    updateSoundButton();
+    updateVizButtons();
+    setInterval(updateClock, 1000);
+    showQuote();
+    setInterval(showQuote, 60 * 1000);
+  </script>
+</body>
+</html>

@@ -2,8 +2,8 @@
 set -euo pipefail
 
 REPO="${REPO:-Viralhouse/clock-app}"
-TARGET_APP="${TARGET_APP:-/Applications/Clock.app}"
-ASSET_NAME="${ASSET_NAME:-Clock.app.zip}"
+TARGET_APP="${TARGET_APP:-/Applications/DeepTide.app}"
+ASSET_NAME="${ASSET_NAME:-DeepTide.app.zip}"
 TMP_DIR="$(mktemp -d)"
 trap 'rm -rf "$TMP_DIR"' EXIT
 
@@ -50,14 +50,14 @@ fi
 
 echo "Unpacking..."
 ditto -x -k "$ZIP_PATH" "$TMP_DIR/unpacked"
-if [[ ! -d "$TMP_DIR/unpacked/Clock.app" ]]; then
-  echo "Downloaded archive does not contain Clock.app" >&2
+if [[ ! -d "$TMP_DIR/unpacked/DeepTide.app" ]]; then
+  echo "Downloaded archive does not contain DeepTide.app" >&2
   exit 1
 fi
 
 echo "Installing update to $TARGET_APP"
 rm -rf "$TARGET_APP"
-cp -R "$TMP_DIR/unpacked/Clock.app" "$TARGET_APP"
+cp -R "$TMP_DIR/unpacked/DeepTide.app" "$TARGET_APP"
 codesign --force --deep --sign - "$TARGET_APP" >/dev/null
 xattr -dr com.apple.quarantine "$TARGET_APP" 2>/dev/null || true
 

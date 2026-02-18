@@ -6,7 +6,7 @@ cd "$ROOT_DIR"
 
 VERSION="${1:-1.0.0}"
 BUILD_NUM="${2:-$(date +%Y%m%d%H%M)}"
-APP_NAME="Clock.app"
+APP_NAME="DeepTide.app"
 DIST_DIR="$ROOT_DIR/dist"
 APP_DIR="$DIST_DIR/$APP_NAME"
 MACOS_DIR="$APP_DIR/Contents/MacOS"
@@ -23,8 +23,8 @@ mkdir -p "$MACOS_DIR" "$WEB_DIR"
 mkdir -p "$ROOT_DIR/.build/module-cache"
 
 export SWIFT_MODULECACHE_PATH="$ROOT_DIR/.build/module-cache"
-swiftc ClockApp.swift \
-  -o "$MACOS_DIR/Clock" \
+swiftc DeepTideApp.swift \
+  -o "$MACOS_DIR/DeepTide" \
   -framework Cocoa \
   -framework WebKit \
   -sdk "$SDK_PATH" \
@@ -38,7 +38,7 @@ if [[ -f "$ROOT_DIR/AppIcon.icns" ]]; then
   cp "$ROOT_DIR/AppIcon.icns" "$RES_DIR/AppIcon.icns"
 fi
 
-cp clock.html "$WEB_DIR/clock.html"
+cp deeptide.html "$WEB_DIR/deeptide.html"
 if [[ -d "$ROOT_DIR/audio" ]]; then
   cp -R "$ROOT_DIR/audio" "$WEB_DIR/audio"
 fi

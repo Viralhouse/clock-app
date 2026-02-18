@@ -1,4 +1,4 @@
-# Clock Distribution and Updates
+# DeepTide Distribution and Updates
 
 ## 1. Build a Portable App
 Run:
@@ -7,8 +7,8 @@ Run:
 ./scripts/build-app-bundle.sh 1.0.0
 ```
 
-This creates `dist/Clock.app` with bundled web assets:
-- `clock.html`
+This creates `dist/DeepTide.app` with bundled web assets:
+- `deeptide.html`
 - `audio/lofi/*`
 
 ## 2. Local Install (Your Mac)
@@ -24,10 +24,10 @@ This creates `dist/Clock.app` with bundled web assets:
 ```
 
 This creates:
-- `dist/release/Clock.app.zip`
-- `dist/release/Clock.app.zip.sha256`
+- `dist/release/DeepTide.app.zip`
+- `dist/release/DeepTide.app.zip.sha256`
 
-Upload `Clock.app.zip` to a GitHub Release in `Viralhouse/clock-app`.
+Upload `DeepTide.app.zip` to a GitHub Release in `Viralhouse/clock-app`.
 
 Optional automated publish with GitHub CLI:
 
@@ -36,11 +36,11 @@ Optional automated publish with GitHub CLI:
 ```
 
 ## 4. Friend Install
-1. Download `Clock.app.zip` from GitHub Release
-2. Unzip and move `Clock.app` to `/Applications`
+1. Download `DeepTide.app.zip` from GitHub Release
+2. Unzip and move `DeepTide.app` to `/Applications`
 3. Open app and grant:
-   - Privacy & Security -> Accessibility -> `Clock`
-   - Privacy & Security -> Automation -> `Clock` -> `System Events`
+   - Privacy & Security -> Accessibility -> `DeepTide`
+   - Privacy & Security -> Automation -> `DeepTide` -> `System Events`
 4. Ensure Shortcuts app has:
    - `FocusOn`
    - `FocusOff`
@@ -69,8 +69,8 @@ shortcuts run FocusOff
 ## 5. Update from GitHub
 
 In-app:
-- Click the update button (`↻`) in the top-left corner of the app.
-- App downloads latest `Clock.app.zip`, installs, and restarts.
+- Click the update button (`↻`) in the bottom-left corner of the app.
+- App downloads latest `DeepTide.app.zip`, installs, and restarts.
 
 Terminal fallback:
 

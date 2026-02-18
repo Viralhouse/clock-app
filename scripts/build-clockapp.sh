@@ -12,11 +12,11 @@ fi
 mkdir -p .build/module-cache
 export SWIFT_MODULECACHE_PATH="$ROOT_DIR/.build/module-cache"
 
-swiftc ClockApp.swift \
-  -o /tmp/ClockApp \
+swiftc DeepTideApp.swift \
+  -o /tmp/DeepTideApp \
   -framework Cocoa \
   -framework WebKit \
   -sdk "$SDK_PATH" \
   -target arm64-apple-macosx15.0
 
-echo "Build OK: /tmp/ClockApp"
+echo "Build OK: /tmp/DeepTideApp"
