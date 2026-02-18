@@ -72,7 +72,24 @@
       font-family: 'Courier New', monospace;
       transition: background 0.25s ease, color 0.25s ease;
     }
+    .clock-container {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    #visualizer {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 0;
+      pointer-events: none;
+      display: none;
+    }
     .clock {
+      position: relative;
+      z-index: 1;
       color: var(--clock);
       font-size: 6rem;
       letter-spacing: 0.05em;
@@ -289,7 +306,10 @@
   </style>
 </head>
 <body>
-  <div class="clock" id="clock"></div>
+  <div class="clock-container">
+    <canvas id="visualizer" width="340" height="340"></canvas>
+    <div class="clock" id="clock"></div>
+  </div>
   <div class="quote-row">
     <button class="quote-nav" id="prevQuoteBtn" onclick="prevQuote()" aria-label="Previous quote">&lt;</button>
     <div class="quote" id="quote"></div>
@@ -382,6 +402,11 @@
     let shuffledOrder = [];
     let shufflePos = 0;
     let updatePending = false;
+    let rainAnalyser = null;
+    let lofiAnalyser = null;
+    let lofiAudioCtx = null;
+    let lofiMediaSource = null;
+    let vizAnimId = null;
 
     function initQuoteOrder(keepCurrent = false) {
       quoteOrder = Array.from({ length: quotes.length }, (_, i) => i);
@@ -718,10 +743,14 @@
       gain.gain.linearRampToValueAtTime(isMuted ? 0 : 0.15, rainCtx.currentTime + 2);
       lfoGain.connect(gain.gain); // modulate the main gain
 
+      rainAnalyser = rainCtx.createAnalyser();
+      rainAnalyser.fftSize = 256;
+
       noiseSource.connect(bandpass);
       bandpass.connect(highpass);
       highpass.connect(gain);
-      gain.connect(rainCtx.destination);
+      gain.connect(rainAnalyser);
+      rainAnalyser.connect(rainCtx.destination);
       noiseSource.start();
       lfo.start();
 
@@ -750,7 +779,7 @@
 
       patterSource.connect(patterFilter);
       patterFilter.connect(patterGain);
-      patterGain.connect(rainCtx.destination);
+      patterGain.connect(rainAnalyser);
       patterSource.start();
 
       rainNodes.push(patterSource, patterFilter, patterGain);
@@ -776,7 +805,7 @@
       g.gain.setValueAtTime(0.02 + Math.random() * 0.02, rainCtx.currentTime);
       g.gain.exponentialRampToValueAtTime(0.001, rainCtx.currentTime + 0.06);
       osc.connect(g);
-      g.connect(rainCtx.destination);
+      g.connect(rainAnalyser || rainCtx.destination);
       osc.start();
       osc.stop(rainCtx.currentTime + 0.07);
     }
@@ -797,6 +826,7 @@
         rainCtx.close();
         rainCtx = null;
         rainNodes = [];
+        rainAnalyser = null;
       }, 2000);
     }
 
@@ -831,6 +861,96 @@
       stopLofi();
     }
 
+    // --- LoFi AudioContext for analyser ---
+    function initLofiAudioContext() {
+      if (lofiAudioCtx) return;
+      lofiAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      lofiMediaSource = lofiAudioCtx.createMediaElementSource(lofiAudio);
+      lofiAnalyser = lofiAudioCtx.createAnalyser();
+      lofiAnalyser.fftSize = 256;
+      lofiMediaSource.connect(lofiAnalyser);
+      lofiAnalyser.connect(lofiAudioCtx.destination);
+    }
+
+    // --- Visualizer ---
+    function startVisualizer() {
+      if (vizAnimId) return;
+      const canvas = document.getElementById('visualizer');
+      canvas.style.display = '';
+      drawVisualizer();
+    }
+
+    function stopVisualizer() {
+      if (vizAnimId) {
+        cancelAnimationFrame(vizAnimId);
+        vizAnimId = null;
+      }
+      const canvas = document.getElementById('visualizer');
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      canvas.style.display = 'none';
+    }
+
+    function drawVisualizer() {
+      vizAnimId = requestAnimationFrame(drawVisualizer);
+
+      const analyser = soundMode === 'lofi' ? lofiAnalyser : rainAnalyser;
+      const canvas = document.getElementById('visualizer');
+      const ctx = canvas.getContext('2d');
+      const W = canvas.width;
+      const H = canvas.height;
+      ctx.clearRect(0, 0, W, H);
+
+      const cx = W / 2;
+      const cy = H / 2;
+      const radius = 80;
+      const numBars = 64;
+
+      // Get accent color from CSS variable
+      const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
+
+      // Draw base ring
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+      ctx.strokeStyle = accent;
+      ctx.globalAlpha = 0.15;
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+
+      if (!analyser) return;
+
+      const dataArray = new Uint8Array(analyser.frequencyBinCount);
+      analyser.getByteFrequencyData(dataArray);
+
+      const step = Math.floor(dataArray.length / numBars);
+
+      ctx.save();
+      ctx.shadowColor = accent;
+      ctx.shadowBlur = 8;
+      ctx.strokeStyle = accent;
+      ctx.lineWidth = 2.5;
+
+      for (let i = 0; i < numBars; i++) {
+        const angle = (i / numBars) * Math.PI * 2 - Math.PI / 2;
+        const value = dataArray[i * step] / 255;
+        const barLen = 4 + value * 75;
+
+        const x1 = cx + Math.cos(angle) * radius;
+        const y1 = cy + Math.sin(angle) * radius;
+        const x2 = cx + Math.cos(angle) * (radius + barLen);
+        const y2 = cy + Math.sin(angle) * (radius + barLen);
+
+        ctx.globalAlpha = 0.3 + value * 0.7;
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.stroke();
+      }
+
+      ctx.restore();
+    }
+
     // --- Timer ---
     function startTimer(minutes) {
       if (!minutes || minutes < 1) return;
@@ -845,6 +965,7 @@
 
       notifyFocus('start');
       startAmbience();
+      startVisualizer();
 
       timerInterval = setInterval(tickTimer, 200);
       tickTimer();
@@ -877,6 +998,7 @@
 
       notifyFocus('stop');
       stopAmbience();
+      stopVisualizer();
       playAlarm();
       showNotification();
     }
@@ -895,6 +1017,7 @@
 
       notifyFocus('stop');
       stopAmbience();
+      stopVisualizer();
     }
 
     function sendToSwift(action) {
@@ -967,6 +1090,7 @@
     lofiAudio.addEventListener('play', updateLofiPlayButton);
     lofiAudio.addEventListener('pause', updateLofiPlayButton);
     window.handleNativeUpdateState = handleNativeUpdateState;
+    initLofiAudioContext();
     updateSoundButton();
     setInterval(updateClock, 1000);
     showQuote();
