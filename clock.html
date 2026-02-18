@@ -72,17 +72,12 @@
       font-family: 'Courier New', monospace;
       transition: background 0.25s ease, color 0.25s ease;
     }
-    .clock-container {
-      position: relative;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
     #visualizer {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
       z-index: 0;
       pointer-events: none;
       display: none;
@@ -306,10 +301,8 @@
   </style>
 </head>
 <body>
-  <div class="clock-container">
-    <canvas id="visualizer" width="340" height="340"></canvas>
-    <div class="clock" id="clock"></div>
-  </div>
+  <canvas id="visualizer"></canvas>
+  <div class="clock" id="clock"></div>
   <div class="quote-row">
     <button class="quote-nav" id="prevQuoteBtn" onclick="prevQuote()" aria-label="Previous quote">&lt;</button>
     <div class="quote" id="quote"></div>
@@ -897,14 +890,20 @@
       const analyser = soundMode === 'lofi' ? lofiAnalyser : rainAnalyser;
       const canvas = document.getElementById('visualizer');
       const ctx = canvas.getContext('2d');
-      const W = canvas.width;
-      const H = canvas.height;
+      const dpr = window.devicePixelRatio || 1;
+      const W = window.innerWidth;
+      const H = window.innerHeight;
+      if (canvas.width !== W * dpr || canvas.height !== H * dpr) {
+        canvas.width = W * dpr;
+        canvas.height = H * dpr;
+        ctx.scale(dpr, dpr);
+      }
       ctx.clearRect(0, 0, W, H);
 
       const cx = W / 2;
       const cy = H / 2;
-      const radius = 80;
-      const numBars = 64;
+      const radius = Math.min(W, H) * 0.42;
+      const numBars = 128;
 
       // Get accent color from CSS variable
       const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
@@ -934,7 +933,7 @@
       for (let i = 0; i < numBars; i++) {
         const angle = (i / numBars) * Math.PI * 2 - Math.PI / 2;
         const value = dataArray[i * step] / 255;
-        const barLen = 4 + value * 75;
+        const barLen = 3 + value * radius * 0.45;
 
         const x1 = cx + Math.cos(angle) * radius;
         const y1 = cy + Math.sin(angle) * radius;
