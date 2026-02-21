@@ -208,9 +208,16 @@
     }
     #themeBtn {
       position: fixed;
+      bottom: 102px;
+      left: 14px;
+      z-index: 20;
+    }
+    #debugBtn {
+      position: fixed;
       bottom: 58px;
       left: 14px;
       z-index: 20;
+      font-size: 0.8rem;
     }
     #colorThemeBtn {
       position: fixed;
@@ -368,15 +375,16 @@
     <input class="timer-input" id="customMin" type="number" min="1" max="240" placeholder="min"
            onkeydown="if(event.key==='Enter'){startTimer(parseInt(this.value))}">
   </div>
-  <button class="timer-btn hidden" id="soundModeBtn" onclick="toggleSoundMode()">Sound: Rain</button>
-  <div class="volume-wrap hidden" id="volumeWrap">
+  <button class="timer-btn" id="soundModeBtn" onclick="toggleSoundMode()">Sound: Rain</button>
+  <div class="volume-wrap" id="volumeWrap">
     <label for="volumeSlider">Vol</label>
     <input type="range" id="volumeSlider" min="0" max="100" value="70" oninput="setVolume(this.value)">
   </div>
-  <button class="timer-btn icon-btn hidden" id="muteBtn" onclick="toggleMute()" title="Toggle mute" aria-label="Toggle mute">🔊</button>
-  <button class="timer-btn icon-btn hidden" id="vizToggleBtn" onclick="toggleViz()" title="Visualizer an/aus" aria-label="Visualizer an/aus">◉</button>
-  <button class="timer-btn icon-btn hidden" id="vizColorBtn" onclick="cycleVizColor()" title="Visualizer Farbe" aria-label="Visualizer Farbe">●</button>
+  <button class="timer-btn icon-btn" id="muteBtn" onclick="toggleMute()" title="Toggle mute" aria-label="Toggle mute">🔊</button>
+  <button class="timer-btn icon-btn" id="vizToggleBtn" onclick="toggleViz()" title="Visualizer an/aus" aria-label="Visualizer an/aus">◉</button>
+  <button class="timer-btn icon-btn" id="vizColorBtn" onclick="cycleVizColor()" title="Visualizer Farbe" aria-label="Visualizer Farbe">●</button>
   <button class="timer-btn icon-btn" id="updateBtn" onclick="triggerUpdate()" title="Check for updates" aria-label="Check for updates">↻</button>
+  <button class="timer-btn icon-btn" id="debugBtn" onclick="toggleDebugInfo()" title="Debug anzeigen" aria-label="Debug anzeigen">⌁</button>
   <button class="timer-btn icon-btn" id="themeBtn" onclick="toggleTheme()" title="Toggle theme" aria-label="Toggle theme">◐</button>
   <button class="timer-btn icon-btn" id="colorThemeBtn" onclick="cycleColorTheme()" title="Farbschema" aria-label="Farbschema">●</button>
   <button class="cancel-btn hidden" id="cancelBtn" onclick="cancelTimer()">[ abbrechen ]</button>
@@ -505,6 +513,8 @@
     let spotifyLastSignalUpdateTs = 0;
     let spotifyVolumeDebounceTimer = null;
     let spotifyProgressTimer = null;
+    let showDebugInfo = false;
+    let activeAmbienceMode = null;
     let vizAnimId = null;
     let vizEnabled = true;
     const vizColorModes = ['accent', 'rainbow', 'fire', 'ocean', 'purple'];
@@ -579,6 +589,20 @@
       const btn = document.getElementById('soundModeBtn');
       const labels = { rain: 'Sound: Rain', ocean: 'Sound: Ocean', lofi: 'Sound: LoFi', spotify: 'Sound: Spotify' };
       btn.textContent = labels[soundMode] || 'Sound: Rain';
+    }
+
+    function updateDebugButton() {
+      const btn = document.getElementById('debugBtn');
+      btn.textContent = showDebugInfo ? '⌁' : '·';
+      btn.title = showDebugInfo ? 'Debug ausblenden' : 'Debug anzeigen';
+      btn.setAttribute('aria-label', btn.title);
+    }
+
+    function toggleDebugInfo() {
+      showDebugInfo = !showDebugInfo;
+      try { localStorage.setItem('deeptide_debug_info', showDebugInfo ? '1' : '0'); } catch (_) {}
+      updateDebugButton();
+      updateSpotifyPanel();
     }
 
     function applyTheme(nextTheme) {
@@ -687,10 +711,8 @@
       soundMode = modes[(modes.indexOf(soundMode) + 1) % modes.length];
       updateSoundButton();
       updateMediaPanelsVisibility();
-      if (timerInterval) {
-        stopAmbience();
-        startAmbience();
-      }
+      startAmbience();
+      if (vizEnabled) startVisualizer();
     }
 
     function updateMuteButton() {
@@ -805,8 +827,8 @@
     function updateMediaPanelsVisibility() {
       const lofiPanel = document.getElementById('playlistPanel');
       const spotifyPanel = document.getElementById('spotifyPanel');
-      lofiPanel.classList.toggle('hidden', !timerInterval || soundMode !== 'lofi');
-      spotifyPanel.classList.toggle('hidden', !timerInterval || soundMode !== 'spotify');
+      lofiPanel.classList.toggle('hidden', soundMode !== 'lofi');
+      spotifyPanel.classList.toggle('hidden', soundMode !== 'spotify');
     }
 
     function updateTrackDisplay() {
@@ -829,7 +851,10 @@
 
       document.getElementById('spotifyTrackName').textContent = trackName;
       document.getElementById('spotifyArtistName').textContent = artistName;
-      document.getElementById('spotifyStateText').textContent = `Status: ${stateLabel} · ${spotifyAudioSourceStatus} · Signal ${Math.round(spotifySignalLevel * 100)}%`;
+      const debugTail = showDebugInfo
+        ? ` · ${spotifyAudioSourceStatus} · Signal ${Math.round(spotifySignalLevel * 100)}%`
+        : '';
+      document.getElementById('spotifyStateText').textContent = `Status: ${stateLabel}${debugTail}`;
       document.getElementById('spotifyPlayPauseBtn').textContent = spotifyState.playerState === 'playing' ? 'Pause' : 'Play';
       updateSpotifyProgress();
     }
@@ -1286,6 +1311,8 @@
     }
 
     function startAmbience() {
+      if (activeAmbienceMode === soundMode) return;
+      if (activeAmbienceMode) stopAmbience();
       if (soundMode === 'lofi') startLofi();
       else if (soundMode === 'spotify') {
         sendToSwift('spotifyRefresh');
@@ -1297,6 +1324,7 @@
       }
       else if (soundMode === 'ocean') startOcean();
       else startRain();
+      activeAmbienceMode = soundMode;
     }
 
     function stopAmbience() {
@@ -1305,6 +1333,7 @@
       stopLofi();
       stopSpotifySystemAudioCapture();
       stopSpotifyProgressTicker();
+      activeAmbienceMode = null;
     }
 
     // --- LoFi AudioContext for analyser ---
@@ -1391,10 +1420,8 @@
     function toggleViz() {
       vizEnabled = !vizEnabled;
       updateVizButtons();
-      if (timerInterval) {
-        if (vizEnabled) startVisualizer();
-        else stopVisualizer();
-      }
+      if (vizEnabled) startVisualizer();
+      else stopVisualizer();
     }
 
     function cycleVizColor() {
@@ -1601,11 +1628,6 @@
       clockEl.classList.add('countdown');
       document.getElementById('timerControls').classList.add('hidden');
       document.getElementById('cancelBtn').classList.remove('hidden');
-      document.getElementById('soundModeBtn').classList.remove('hidden');
-      document.getElementById('muteBtn').classList.remove('hidden');
-      document.getElementById('volumeWrap').classList.remove('hidden');
-      document.getElementById('vizToggleBtn').classList.remove('hidden');
-      document.getElementById('vizColorBtn').classList.remove('hidden');
       updateMediaPanelsVisibility();
 
       notifyFocus('start');
@@ -1636,13 +1658,7 @@
       document.getElementById('clock').classList.remove('countdown');
       document.getElementById('timerControls').classList.remove('hidden');
       document.getElementById('cancelBtn').classList.add('hidden');
-      document.getElementById('soundModeBtn').classList.add('hidden');
-      document.getElementById('muteBtn').classList.add('hidden');
-      document.getElementById('vizToggleBtn').classList.add('hidden');
-      document.getElementById('vizColorBtn').classList.add('hidden');
-      document.getElementById('volumeWrap').classList.add('hidden');
-      document.getElementById('playlistPanel').classList.add('hidden');
-      document.getElementById('spotifyPanel').classList.add('hidden');
+      updateMediaPanelsVisibility();
       updateClock();
 
       notifyFocus('stop');
@@ -1659,13 +1675,7 @@
       document.getElementById('clock').classList.remove('countdown');
       document.getElementById('timerControls').classList.remove('hidden');
       document.getElementById('cancelBtn').classList.add('hidden');
-      document.getElementById('soundModeBtn').classList.add('hidden');
-      document.getElementById('muteBtn').classList.add('hidden');
-      document.getElementById('vizToggleBtn').classList.add('hidden');
-      document.getElementById('vizColorBtn').classList.add('hidden');
-      document.getElementById('volumeWrap').classList.add('hidden');
-      document.getElementById('playlistPanel').classList.add('hidden');
-      document.getElementById('spotifyPanel').classList.add('hidden');
+      updateMediaPanelsVisibility();
       updateClock();
 
       notifyFocus('stop');
@@ -1739,9 +1749,11 @@
 
     try {
       colorThemeIndex = parseInt(localStorage.getItem('deeptide_color_theme')) || 0;
+      showDebugInfo = localStorage.getItem('deeptide_debug_info') === '1';
       applyTheme(localStorage.getItem('deeptide_theme') || 'dark');
       applyColorTheme();
     } catch (_) {
+      showDebugInfo = false;
       applyTheme('dark');
       applyColorTheme();
     }
@@ -1760,6 +1772,8 @@
     sendToSwift('spotifyRefresh');
     initLofiAudioContext();
     updateSoundButton();
+    updateMediaPanelsVisibility();
+    updateDebugButton();
     updateVizButtons();
     setInterval(updateClock, 1000);
     showQuote();
