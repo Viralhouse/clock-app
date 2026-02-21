@@ -707,8 +707,16 @@
     }
 
     function toggleSoundMode() {
+      const prevMode = soundMode;
       const modes = ['rain', 'ocean', 'lofi', 'spotify'];
       soundMode = modes[(modes.indexOf(soundMode) + 1) % modes.length];
+
+      if (prevMode === 'spotify' && soundMode !== 'spotify') {
+        sendToSwift('spotifyPause');
+      } else if (prevMode !== 'spotify' && soundMode === 'spotify') {
+        sendToSwift('spotifyPlay');
+      }
+
       updateSoundButton();
       updateMediaPanelsVisibility();
       startAmbience();

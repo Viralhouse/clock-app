@@ -41,6 +41,10 @@ class FocusMessageHandler: NSObject, WKScriptMessageHandler {
             runSpotifyCommand("playpause")
         case "spotifyNext":
             runSpotifyCommand("next track")
+        case "spotifyPlay":
+            runSpotifyCommand("play")
+        case "spotifyPause":
+            runSpotifyCommand("pause")
         case "spotifySeek":
             if let pos = payload?["position"] as? Double {
                 runSpotifySeek(position: pos)
