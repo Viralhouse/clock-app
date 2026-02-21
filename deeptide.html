@@ -487,6 +487,7 @@
     let spotifyAudioCtx = null;
     let spotifyAnalyser = null;
     let spotifyMediaSource = null;
+    let spotifySilentSink = null;
     let spotifyAudioStream = null;
     let spotifyState = {
       running: false,
@@ -502,6 +503,8 @@
     let spotifySignalLevel = 0;
     let spotifyPrevVolumeBeforeMute = 70;
     let spotifyLastSignalUpdateTs = 0;
+    let spotifyVolumeDebounceTimer = null;
+    let spotifyProgressTimer = null;
     let vizAnimId = null;
     let vizEnabled = true;
     const vizColorModes = ['accent', 'rainbow', 'fire', 'ocean', 'purple'];
@@ -737,7 +740,10 @@
       if (soundMode === 'spotify') {
         const numVal = Math.max(0, Math.min(100, Number(val) || 0));
         isMuted = numVal === 0;
-        sendToSwiftMessage({ action: 'spotifySetVolume', volume: numVal });
+        if (spotifyVolumeDebounceTimer) clearTimeout(spotifyVolumeDebounceTimer);
+        spotifyVolumeDebounceTimer = setTimeout(() => {
+          sendToSwiftMessage({ action: 'spotifySetVolume', volume: numVal });
+        }, 90);
         updateMuteButton();
       }
       applyVolumeAll();
@@ -870,6 +876,23 @@
       document.getElementById('spotifyTime').textContent = `${formatTime(current)} / ${formatTime(duration)}`;
     }
 
+    function startSpotifyProgressTicker() {
+      if (spotifyProgressTimer) return;
+      spotifyProgressTimer = setInterval(() => {
+        if (soundMode !== 'spotify') return;
+        if (spotifyState.playerState !== 'playing') return;
+        if (!spotifyState.duration || spotifyState.duration <= 0) return;
+        spotifyState.position = Math.min(spotifyState.duration, (spotifyState.position || 0) + 0.25);
+        updateSpotifyProgress();
+      }, 250);
+    }
+
+    function stopSpotifyProgressTicker() {
+      if (!spotifyProgressTimer) return;
+      clearInterval(spotifyProgressTimer);
+      spotifyProgressTimer = null;
+    }
+
     function seekSpotify(event) {
       if (!spotifyState.running || !spotifyState.duration) return;
       const bar = document.getElementById('spotifyProgress');
@@ -879,6 +902,7 @@
       spotifyState.position = targetSec;
       updateSpotifyProgress();
       sendToSwiftMessage({ action: 'spotifySeek', position: targetSec });
+      setTimeout(() => sendToSwift('spotifyRefresh'), 180);
     }
 
     function formatTime(seconds) {
@@ -1269,6 +1293,7 @@
         const currentVol = Math.max(0, Math.min(100, Number(slider.value) || 0));
         sendToSwiftMessage({ action: 'spotifySetVolume', volume: currentVol });
         initSpotifySystemAudioCapture();
+        startSpotifyProgressTicker();
       }
       else if (soundMode === 'ocean') startOcean();
       else startRain();
@@ -1279,6 +1304,7 @@
       stopOcean();
       stopLofi();
       stopSpotifySystemAudioCapture();
+      stopSpotifyProgressTicker();
     }
 
     // --- LoFi AudioContext for analyser ---
@@ -1327,7 +1353,13 @@
         spotifyMediaSource = spotifyAudioCtx.createMediaStreamSource(spotifyAudioStream);
         spotifyAnalyser = spotifyAudioCtx.createAnalyser();
         spotifyAnalyser.fftSize = 256;
+        spotifyAnalyser.smoothingTimeConstant = 0.75;
+        spotifySilentSink = spotifyAudioCtx.createGain();
+        spotifySilentSink.gain.value = 0;
         spotifyMediaSource.connect(spotifyAnalyser);
+        spotifyAnalyser.connect(spotifySilentSink);
+        spotifySilentSink.connect(spotifyAudioCtx.destination);
+        await spotifyAudioCtx.resume();
         spotifyAudioSourceStatus = `STT_SYSTEM: aktiv (${preferred.label || 'ok'})`;
         updateSpotifyPanel();
         return true;
@@ -1349,6 +1381,7 @@
       }
       spotifyMediaSource = null;
       spotifyAnalyser = null;
+      spotifySilentSink = null;
       spotifyAudioSourceStatus = 'STT_SYSTEM: gestoppt';
       spotifySignalLevel = 0;
       updateSpotifyPanel();

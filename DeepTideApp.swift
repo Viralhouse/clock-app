@@ -206,7 +206,6 @@ class FocusMessageHandler: NSObject, WKScriptMessageHandler {
             end if
             """
             _ = self.runAppleScript(script)
-            self.publishSpotifyState()
         }
     }
 
@@ -257,9 +256,9 @@ class FocusMessageHandler: NSObject, WKScriptMessageHandler {
         let track = parts.indices.contains(2) ? parts[2] : ""
         let artist = parts.indices.contains(3) ? parts[3] : ""
         let album = parts.indices.contains(4) ? parts[4] : ""
-        let duration = Double(parts.indices.contains(5) ? parts[5] : "0") ?? 0
-        let position = Double(parts.indices.contains(6) ? parts[6] : "0") ?? 0
-        let volume = Double(parts.indices.contains(7) ? parts[7] : "0") ?? 0
+        let duration = parseNumber(parts.indices.contains(5) ? parts[5] : "0")
+        let position = parseNumber(parts.indices.contains(6) ? parts[6] : "0")
+        let volume = parseNumber(parts.indices.contains(7) ? parts[7] : "0")
 
         return [
             "running": running,
@@ -290,6 +289,13 @@ class FocusMessageHandler: NSObject, WKScriptMessageHandler {
             return nil
         }
         return result?.stringValue
+    }
+
+    private func parseNumber(_ raw: String) -> Double {
+        let normalized = raw
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: ",", with: ".")
+        return Double(normalized) ?? 0
     }
 
     private func runFocusShortcut(enabled: Bool) -> Bool {
