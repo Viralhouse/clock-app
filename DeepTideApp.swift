@@ -49,6 +49,8 @@ class FocusMessageHandler: NSObject, WKScriptMessageHandler {
             runSpotifyCommand("play", refreshState: false)
         case "spotifyPauseFast":
             runSpotifyCommand("pause", refreshState: false)
+        case "spotifyFocus":
+            runSpotifyFocus()
         case "spotifyToggleLike":
             runSpotifyToggleLike()
         case "spotifySeek":
@@ -225,7 +227,15 @@ class FocusMessageHandler: NSObject, WKScriptMessageHandler {
         spotifyQueue.async { [weak self] in
             guard let self else { return }
             // Most reliable path: user-defined Shortcuts action for "like current Spotify track".
-            let shortcutCandidates = ["SpotifyLikeCurrentTrack", "SpotifyLike", "LikeCurrentTrack"]
+            var shortcutCandidates = self.detectSpotifyLikeShortcuts()
+            shortcutCandidates.append(contentsOf: [
+                "SpotifyLikeCurrentTrack",
+                "SpotifyLike",
+                "LikeCurrentTrack",
+                "Spotify Zu Lieblingssongs hinzufügen",
+                "Spotify Zu Lieblingssongs",
+                "Zu Lieblingssongs hinzufügen"
+            ])
             for name in shortcutCandidates {
                 if self.runNamedShortcut(name: name, timeout: 5.0) {
                     self.publishSpotifyLikeResult("ok_shortcuts_app")
@@ -353,16 +363,7 @@ class FocusMessageHandler: NSObject, WKScriptMessageHandler {
                     on error
                     end try
 
-                    -- Strategy 4: coordinate fallback for "+" button bottom-left in now-playing bar
-                    try
-                        set w to window 1
-                        set {xPos, yPos} to position of w
-                        set {wSize, hSize} to size of w
-                        click at {xPos + 30, yPos + hSize - 28}
-                        return "ok_point_click"
-                    on error
-                        return "not_found"
-                    end try
+                    return "not_found"
                 end tell
             end tell
             """
@@ -370,6 +371,16 @@ class FocusMessageHandler: NSObject, WKScriptMessageHandler {
             let result = (self.runAppleScript(script) ?? "error").trimmingCharacters(in: .whitespacesAndNewlines)
             self.publishSpotifyLikeResult(result)
             self.publishSpotifyState()
+        }
+    }
+
+    private func runSpotifyFocus() {
+        spotifyQueue.async { [weak self] in
+            guard let self else { return }
+            let script = """
+            tell application "Spotify" to activate
+            """
+            _ = self.runAppleScript(script)
         }
     }
 
@@ -401,6 +412,42 @@ class FocusMessageHandler: NSObject, WKScriptMessageHandler {
         _ = outPipe.fileHandleForReading.readDataToEndOfFile()
         _ = errPipe.fileHandleForReading.readDataToEndOfFile()
         return process.terminationStatus == 0
+    }
+
+    private func detectSpotifyLikeShortcuts() -> [String] {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/shortcuts")
+        process.arguments = ["list"]
+        let outPipe = Pipe()
+        let errPipe = Pipe()
+        process.standardOutput = outPipe
+        process.standardError = errPipe
+
+        do {
+            try process.run()
+            process.waitUntilExit()
+        } catch {
+            return []
+        }
+
+        guard process.terminationStatus == 0 else { return [] }
+        let outData = outPipe.fileHandleForReading.readDataToEndOfFile()
+        let output = String(data: outData, encoding: .utf8) ?? ""
+        let names = output
+            .components(separatedBy: .newlines)
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+
+        func containsOne(_ s: String, _ terms: [String]) -> Bool {
+            let lower = s.lowercased()
+            return terms.contains { lower.contains($0) }
+        }
+
+        let matched = names.filter { n in
+            containsOne(n, ["spotify"]) &&
+            containsOne(n, ["like", "liked", "lieblings", "favorit", "favorite"])
+        }
+        return Array(Set(matched))
     }
 
     private func publishSpotifyState() {

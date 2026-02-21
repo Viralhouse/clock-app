@@ -413,7 +413,7 @@
       <button class="playlist-btn" onclick="spotifyPrev()">Prev</button>
       <button class="playlist-btn" id="spotifyPlayPauseBtn" onclick="spotifyPlayPause()">Play</button>
       <button class="playlist-btn" onclick="spotifyNext()">Next</button>
-      <button class="playlist-btn" id="spotifyLikeBtn" onclick="spotifyToggleLike()" title="Zu Lieblingssongs hinzufügen" aria-label="Zu Lieblingssongs hinzufügen">♥</button>
+      <button class="playlist-btn" id="spotifyLikeBtn" onclick="focusSpotify()" title="In Spotify öffnen" aria-label="In Spotify öffnen">↗ Spotify</button>
     </div>
     <div class="playlist-time" id="spotifyStateText">Status: Unbekannt</div>
   </div>
@@ -902,31 +902,14 @@
       sendToSwift('spotifyNext');
     }
 
-    function spotifyToggleLike() {
-      const btn = document.getElementById('spotifyLikeBtn');
-      btn.disabled = true;
-      btn.textContent = '…';
-      sendToSwift('spotifyToggleLike');
-      setTimeout(() => {
-        btn.disabled = false;
-        if (btn.textContent === '…') btn.textContent = '♥';
-      }, 1200);
+    function focusSpotify() {
+      sendToSwift('spotifyFocus');
     }
 
     function handleNativeSpotifyLikeResult(result) {
       const btn = document.getElementById('spotifyLikeBtn');
-      btn.disabled = false;
-      btn.textContent = '♥';
-
-      if (result === 'ok' || result === 'ok_direct_button' || result === 'ok_menu' || result === 'ok_menu_scan' || result === 'ok_shortcut' || result === 'ok_shortcuts_app' || result === 'ok_point_click') {
-        btn.title = 'Liked-Songs aktualisiert';
-      } else if (result === 'not_found') {
-        btn.title = 'Like-Button in Spotify nicht gefunden';
-      } else if (result === 'not_running') {
-        btn.title = 'Spotify läuft nicht';
-      } else {
-        btn.title = 'Like-Aktion fehlgeschlagen';
-      }
+      if (!btn) return;
+      if (result === 'not_running') btn.title = 'Spotify läuft nicht';
     }
 
     function updateSpotifyProgress() {
