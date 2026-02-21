@@ -5,6 +5,8 @@ class FocusMessageHandler: NSObject, WKScriptMessageHandler {
     private let debugLogPath = "/tmp/deeptide_debug.log"
     private let updateStateQueue = DispatchQueue(label: "deeptide.update.state")
     private var isUpdateInProgress = false
+    private let spotifyQueue = DispatchQueue(label: "deeptide.spotify")
+    private var spotifyPollTimer: DispatchSourceTimer?
     weak var webView: WKWebView?
 
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
@@ -30,6 +32,14 @@ class FocusMessageHandler: NSObject, WKScriptMessageHandler {
             setDND(enabled: false)
         case "update":
             performInAppUpdate()
+        case "spotifyRefresh":
+            refreshSpotifyState()
+        case "spotifyPrev":
+            runSpotifyCommand("previous track")
+        case "spotifyPlayPause":
+            runSpotifyCommand("playpause")
+        case "spotifyNext":
+            runSpotifyCommand("next track")
         default:
             break
         }
@@ -37,6 +47,20 @@ class FocusMessageHandler: NSObject, WKScriptMessageHandler {
 
     func requestUpdateFromNative() {
         performInAppUpdate()
+    }
+
+    func startSpotifyMonitoring() {
+        spotifyQueue.async { [weak self] in
+            guard let self else { return }
+            if self.spotifyPollTimer != nil { return }
+            let timer = DispatchSource.makeTimerSource(queue: self.spotifyQueue)
+            timer.schedule(deadline: .now(), repeating: .seconds(1), leeway: .milliseconds(250))
+            timer.setEventHandler { [weak self] in
+                self?.publishSpotifyState()
+            }
+            self.spotifyPollTimer = timer
+            timer.resume()
+        }
     }
 
     private func performInAppUpdate() {
@@ -118,6 +142,103 @@ class FocusMessageHandler: NSObject, WKScriptMessageHandler {
                 runAppleScriptDND(enabled: enabled)
             }
         }
+    }
+
+    private func refreshSpotifyState() {
+        spotifyQueue.async { [weak self] in
+            self?.publishSpotifyState()
+        }
+    }
+
+    private func runSpotifyCommand(_ command: String) {
+        spotifyQueue.async { [weak self] in
+            guard let self else { return }
+            let script = """
+            if application "Spotify" is running then
+                tell application "Spotify"
+                    \(command)
+                end tell
+            end if
+            """
+            _ = self.runAppleScript(script)
+            self.publishSpotifyState()
+        }
+    }
+
+    private func publishSpotifyState() {
+        let state = fetchSpotifyState()
+        DispatchQueue.main.async { [weak self] in
+            self?.postSpotifyState(state)
+        }
+    }
+
+    private func fetchSpotifyState() -> [String: Any] {
+        let script = """
+        if application "Spotify" is running then
+            tell application "Spotify"
+                set playerStateText to (player state as text)
+                set trackName to ""
+                set artistName to ""
+                set albumName to ""
+                set durationSec to 0
+                set positionSec to 0
+
+                try
+                    set currentTrackRef to current track
+                    set trackName to (name of currentTrackRef as text)
+                    set artistName to (artist of currentTrackRef as text)
+                    set albumName to (album of currentTrackRef as text)
+                    set durationSec to ((duration of currentTrackRef) / 1000)
+                    set positionSec to player position
+                end try
+
+                return "1" & linefeed & playerStateText & linefeed & trackName & linefeed & artistName & linefeed & albumName & linefeed & (durationSec as text) & linefeed & (positionSec as text)
+            end tell
+        else
+            return "0" & linefeed & "stopped" & linefeed & "" & linefeed & "" & linefeed & "" & linefeed & "0" & linefeed & "0"
+        end if
+        """
+
+        let output = runAppleScript(script) ?? "0\nstopped\n\n\n\n0\n0"
+        let parts = output
+            .components(separatedBy: CharacterSet.newlines)
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+        let running = (parts.indices.contains(0) ? parts[0] : "0") == "1"
+        let playerState = parts.indices.contains(1) ? parts[1] : "stopped"
+        let track = parts.indices.contains(2) ? parts[2] : ""
+        let artist = parts.indices.contains(3) ? parts[3] : ""
+        let album = parts.indices.contains(4) ? parts[4] : ""
+        let duration = Double(parts.indices.contains(5) ? parts[5] : "0") ?? 0
+        let position = Double(parts.indices.contains(6) ? parts[6] : "0") ?? 0
+
+        return [
+            "running": running,
+            "playerState": playerState,
+            "track": track,
+            "artist": artist,
+            "album": album,
+            "duration": duration,
+            "position": position
+        ]
+    }
+
+    private func postSpotifyState(_ payload: [String: Any]) {
+        guard let webView else { return }
+        guard let data = try? JSONSerialization.data(withJSONObject: payload),
+              let json = String(data: data, encoding: .utf8) else { return }
+        let js = "window.handleNativeSpotifyState && window.handleNativeSpotifyState(\(json));"
+        webView.evaluateJavaScript(js, completionHandler: nil)
+    }
+
+    private func runAppleScript(_ source: String) -> String? {
+        let script = NSAppleScript(source: source)
+        var error: NSDictionary?
+        let result = script?.executeAndReturnError(&error)
+        if let error {
+            log("AppleScript failed: \(error)")
+            return nil
+        }
+        return result?.stringValue
     }
 
     private func runFocusShortcut(enabled: Bool) -> Bool {
@@ -625,6 +746,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         window.contentView!.addSubview(webView)
         window.makeKeyAndOrderFront(nil)
+        focusHandler.startSpotifyMonitoring()
         showOnboardingIfNeeded()
 
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in

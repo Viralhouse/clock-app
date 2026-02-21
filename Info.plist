@@ -19,6 +19,8 @@
   <key>DeepTideUpdateRepo</key>
   <string>Viralhouse/clock-app</string>
   <key>NSAppleEventsUsageDescription</key>
-  <string>DeepTide benötigt Zugriff auf System Events um "Nicht stören" automatisch zu steuern.</string>
+  <string>DeepTide benötigt Apple Events, um "Nicht stören" zu steuern und Spotify-Playback/Tracks auszulesen.</string>
+  <key>NSMicrophoneUsageDescription</key>
+  <string>DeepTide benötigt Audio-Input, um den Visualizer mit BlackHole/STT_SYSTEM für Spotify-Systemaudio zu speisen.</string>
 </dict>
 </plist>

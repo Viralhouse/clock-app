@@ -393,6 +393,17 @@
     </div>
     <div class="playlist-time" id="playlistTime">0:00 / 0:00</div>
   </div>
+  <div class="playlist hidden" id="spotifyPanel">
+    <div class="playlist-title">Spotify</div>
+    <div class="playlist-track" id="spotifyTrackName">Spotify nicht aktiv</div>
+    <div class="playlist-time" id="spotifyArtistName">-</div>
+    <div class="playlist-controls">
+      <button class="playlist-btn" onclick="spotifyPrev()">Prev</button>
+      <button class="playlist-btn" id="spotifyPlayPauseBtn" onclick="spotifyPlayPause()">Play</button>
+      <button class="playlist-btn" onclick="spotifyNext()">Next</button>
+    </div>
+    <div class="playlist-time" id="spotifyStateText">Status: Unbekannt</div>
+  </div>
   <audio id="lofiAudio" preload="metadata"></audio>
   <script>
     const quotes = [
@@ -469,6 +480,19 @@
     let lofiAnalyser = null;
     let lofiAudioCtx = null;
     let lofiMediaSource = null;
+    let spotifyAudioCtx = null;
+    let spotifyAnalyser = null;
+    let spotifyMediaSource = null;
+    let spotifyAudioStream = null;
+    let spotifyState = {
+      running: false,
+      playerState: 'stopped',
+      track: '',
+      artist: '',
+      album: '',
+      duration: 0,
+      position: 0
+    };
     let vizAnimId = null;
     let vizEnabled = true;
     const vizColorModes = ['accent', 'rainbow', 'fire', 'ocean', 'purple'];
@@ -541,7 +565,7 @@
 
     function updateSoundButton() {
       const btn = document.getElementById('soundModeBtn');
-      const labels = { rain: 'Sound: Rain', ocean: 'Sound: Ocean', lofi: 'Sound: LoFi' };
+      const labels = { rain: 'Sound: Rain', ocean: 'Sound: Ocean', lofi: 'Sound: LoFi', spotify: 'Sound: Spotify' };
       btn.textContent = labels[soundMode] || 'Sound: Rain';
     }
 
@@ -647,10 +671,10 @@
     }
 
     function toggleSoundMode() {
-      const modes = ['rain', 'ocean', 'lofi'];
+      const modes = ['rain', 'ocean', 'lofi', 'spotify'];
       soundMode = modes[(modes.indexOf(soundMode) + 1) % modes.length];
       updateSoundButton();
-      updatePlaylistVisibility();
+      updateMediaPanelsVisibility();
       if (timerInterval) {
         stopAmbience();
         startAmbience();
@@ -739,9 +763,11 @@
       }
     }
 
-    function updatePlaylistVisibility() {
-      const panel = document.getElementById('playlistPanel');
-      panel.classList.toggle('hidden', !timerInterval || soundMode !== 'lofi');
+    function updateMediaPanelsVisibility() {
+      const lofiPanel = document.getElementById('playlistPanel');
+      const spotifyPanel = document.getElementById('spotifyPanel');
+      lofiPanel.classList.toggle('hidden', !timerInterval || soundMode !== 'lofi');
+      spotifyPanel.classList.toggle('hidden', !timerInterval || soundMode !== 'spotify');
     }
 
     function updateTrackDisplay() {
@@ -750,6 +776,48 @@
 
     function updateLofiPlayButton() {
       document.getElementById('lofiPlayPauseBtn').textContent = lofiAudio.paused ? 'Play' : 'Pause';
+    }
+
+    function updateSpotifyPanel() {
+      const trackName = spotifyState.running
+        ? (spotifyState.track || '-')
+        : 'Spotify nicht aktiv';
+      const artistName = spotifyState.running
+        ? (spotifyState.artist || '-')
+        : '-';
+      const stateMap = { playing: 'Playing', paused: 'Paused', stopped: 'Stopped' };
+      const stateLabel = stateMap[spotifyState.playerState] || spotifyState.playerState || 'Unbekannt';
+
+      document.getElementById('spotifyTrackName').textContent = trackName;
+      document.getElementById('spotifyArtistName').textContent = artistName;
+      document.getElementById('spotifyStateText').textContent = `Status: ${stateLabel}`;
+      document.getElementById('spotifyPlayPauseBtn').textContent = spotifyState.playerState === 'playing' ? 'Pause' : 'Play';
+    }
+
+    function handleNativeSpotifyState(payload) {
+      if (!payload || typeof payload !== 'object') return;
+      spotifyState = {
+        running: Boolean(payload.running),
+        playerState: String(payload.playerState || 'stopped').toLowerCase(),
+        track: String(payload.track || ''),
+        artist: String(payload.artist || ''),
+        album: String(payload.album || ''),
+        duration: Number(payload.duration || 0),
+        position: Number(payload.position || 0)
+      };
+      updateSpotifyPanel();
+    }
+
+    function spotifyPrev() {
+      sendToSwift('spotifyPrev');
+    }
+
+    function spotifyPlayPause() {
+      sendToSwift('spotifyPlayPause');
+    }
+
+    function spotifyNext() {
+      sendToSwift('spotifyNext');
     }
 
     function formatTime(seconds) {
@@ -1119,7 +1187,7 @@
       lofiAudio.play().then(updateLofiPlayButton).catch(() => {
         soundMode = 'rain';
         updateSoundButton();
-        updatePlaylistVisibility();
+        updateMediaPanelsVisibility();
         updateLofiPlayButton();
         startRain();
       });
@@ -1134,6 +1202,10 @@
 
     function startAmbience() {
       if (soundMode === 'lofi') startLofi();
+      else if (soundMode === 'spotify') {
+        sendToSwift('spotifyRefresh');
+        initSpotifySystemAudioCapture();
+      }
       else if (soundMode === 'ocean') startOcean();
       else startRain();
     }
@@ -1142,6 +1214,7 @@
       stopRain();
       stopOcean();
       stopLofi();
+      stopSpotifySystemAudioCapture();
     }
 
     // --- LoFi AudioContext for analyser ---
@@ -1156,6 +1229,51 @@
       lofiMediaSource.connect(lofiAnalyser);
       lofiAnalyser.connect(lofiMasterGain);
       lofiMasterGain.connect(lofiAudioCtx.destination);
+    }
+
+    async function initSpotifySystemAudioCapture() {
+      if (spotifyAnalyser) return true;
+      try {
+        const primer = await navigator.mediaDevices.getUserMedia({ audio: true });
+        primer.getTracks().forEach(t => t.stop());
+
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const inputs = devices.filter(d => d.kind === 'audioinput');
+        const preferred = inputs.find(d => /stt_system/i.test(d.label))
+          || inputs.find(d => /blackhole/i.test(d.label))
+          || inputs[0];
+        if (!preferred) return false;
+
+        spotifyAudioStream = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            deviceId: preferred.deviceId ? { exact: preferred.deviceId } : undefined,
+            echoCancellation: false,
+            noiseSuppression: false,
+            autoGainControl: false
+          }
+        });
+        spotifyAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        spotifyMediaSource = spotifyAudioCtx.createMediaStreamSource(spotifyAudioStream);
+        spotifyAnalyser = spotifyAudioCtx.createAnalyser();
+        spotifyAnalyser.fftSize = 256;
+        spotifyMediaSource.connect(spotifyAnalyser);
+        return true;
+      } catch (_) {
+        return false;
+      }
+    }
+
+    function stopSpotifySystemAudioCapture() {
+      if (spotifyAudioStream) {
+        spotifyAudioStream.getTracks().forEach(t => t.stop());
+        spotifyAudioStream = null;
+      }
+      if (spotifyAudioCtx) {
+        spotifyAudioCtx.close();
+        spotifyAudioCtx = null;
+      }
+      spotifyMediaSource = null;
+      spotifyAnalyser = null;
     }
 
     // --- Visualizer ---
@@ -1231,7 +1349,13 @@
     function drawVisualizer() {
       vizAnimId = requestAnimationFrame(drawVisualizer);
 
-      const analyser = soundMode === 'lofi' ? lofiAnalyser : soundMode === 'ocean' ? oceanAnalyser : rainAnalyser;
+      const analyser = soundMode === 'lofi'
+        ? lofiAnalyser
+        : soundMode === 'ocean'
+          ? oceanAnalyser
+          : soundMode === 'spotify'
+            ? spotifyAnalyser
+            : rainAnalyser;
       const canvas = document.getElementById('visualizer');
       const ctx = canvas.getContext('2d');
       const dpr = window.devicePixelRatio || 1;
@@ -1350,7 +1474,7 @@
       document.getElementById('volumeWrap').classList.remove('hidden');
       document.getElementById('vizToggleBtn').classList.remove('hidden');
       document.getElementById('vizColorBtn').classList.remove('hidden');
-      updatePlaylistVisibility();
+      updateMediaPanelsVisibility();
 
       notifyFocus('start');
       startAmbience();
@@ -1386,6 +1510,7 @@
       document.getElementById('vizColorBtn').classList.add('hidden');
       document.getElementById('volumeWrap').classList.add('hidden');
       document.getElementById('playlistPanel').classList.add('hidden');
+      document.getElementById('spotifyPanel').classList.add('hidden');
       updateClock();
 
       notifyFocus('stop');
@@ -1408,6 +1533,7 @@
       document.getElementById('vizColorBtn').classList.add('hidden');
       document.getElementById('volumeWrap').classList.add('hidden');
       document.getElementById('playlistPanel').classList.add('hidden');
+      document.getElementById('spotifyPanel').classList.add('hidden');
       updateClock();
 
       notifyFocus('stop');
@@ -1488,6 +1614,9 @@
     lofiAudio.addEventListener('play', updateLofiPlayButton);
     lofiAudio.addEventListener('pause', updateLofiPlayButton);
     window.handleNativeUpdateState = handleNativeUpdateState;
+    window.handleNativeSpotifyState = handleNativeSpotifyState;
+    updateSpotifyPanel();
+    sendToSwift('spotifyRefresh');
     initLofiAudioContext();
     updateSoundButton();
     updateVizButtons();
