@@ -397,6 +397,10 @@
     <div class="playlist-title">Spotify</div>
     <div class="playlist-track" id="spotifyTrackName">Spotify nicht aktiv</div>
     <div class="playlist-time" id="spotifyArtistName">-</div>
+    <div class="playlist-progress" id="spotifyProgress" onclick="seekSpotify(event)">
+      <div class="playlist-progress-fill" id="spotifyProgressFill"></div>
+    </div>
+    <div class="playlist-time" id="spotifyTime">0:00 / 0:00</div>
     <div class="playlist-controls">
       <button class="playlist-btn" onclick="spotifyPrev()">Prev</button>
       <button class="playlist-btn" id="spotifyPlayPauseBtn" onclick="spotifyPlayPause()">Play</button>
@@ -493,6 +497,7 @@
       duration: 0,
       position: 0
     };
+    let spotifyAudioSourceStatus = 'STT_SYSTEM: nicht initialisiert';
     let vizAnimId = null;
     let vizEnabled = true;
     const vizColorModes = ['accent', 'rainbow', 'fire', 'ocean', 'purple'];
@@ -790,8 +795,9 @@
 
       document.getElementById('spotifyTrackName').textContent = trackName;
       document.getElementById('spotifyArtistName').textContent = artistName;
-      document.getElementById('spotifyStateText').textContent = `Status: ${stateLabel}`;
+      document.getElementById('spotifyStateText').textContent = `Status: ${stateLabel} · ${spotifyAudioSourceStatus}`;
       document.getElementById('spotifyPlayPauseBtn').textContent = spotifyState.playerState === 'playing' ? 'Pause' : 'Play';
+      updateSpotifyProgress();
     }
 
     function handleNativeSpotifyState(payload) {
@@ -818,6 +824,25 @@
 
     function spotifyNext() {
       sendToSwift('spotifyNext');
+    }
+
+    function updateSpotifyProgress() {
+      const current = Number.isFinite(spotifyState.position) ? spotifyState.position : 0;
+      const duration = Number.isFinite(spotifyState.duration) ? spotifyState.duration : 0;
+      const ratio = duration > 0 ? (current / duration) * 100 : 0;
+      document.getElementById('spotifyProgressFill').style.width = `${Math.max(0, Math.min(100, ratio))}%`;
+      document.getElementById('spotifyTime').textContent = `${formatTime(current)} / ${formatTime(duration)}`;
+    }
+
+    function seekSpotify(event) {
+      if (!spotifyState.running || !spotifyState.duration) return;
+      const bar = document.getElementById('spotifyProgress');
+      const rect = bar.getBoundingClientRect();
+      const ratio = Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width));
+      const targetSec = ratio * spotifyState.duration;
+      spotifyState.position = targetSec;
+      updateSpotifyProgress();
+      sendToSwiftMessage({ action: 'spotifySeek', position: targetSec });
     }
 
     function formatTime(seconds) {
@@ -1234,15 +1259,22 @@
     async function initSpotifySystemAudioCapture() {
       if (spotifyAnalyser) return true;
       try {
+        spotifyAudioSourceStatus = 'STT_SYSTEM: suche...';
+        updateSpotifyPanel();
         const primer = await navigator.mediaDevices.getUserMedia({ audio: true });
         primer.getTracks().forEach(t => t.stop());
 
         const devices = await navigator.mediaDevices.enumerateDevices();
         const inputs = devices.filter(d => d.kind === 'audioinput');
-        const preferred = inputs.find(d => /stt_system/i.test(d.label))
-          || inputs.find(d => /blackhole/i.test(d.label))
-          || inputs[0];
-        if (!preferred) return false;
+        const preferred = inputs.find(d => {
+          const label = String(d.label || '').trim().toUpperCase();
+          return label === 'STT_SYSTEM' || label.includes('STT_SYSTEM');
+        });
+        if (!preferred) {
+          spotifyAudioSourceStatus = 'STT_SYSTEM: nicht gefunden';
+          updateSpotifyPanel();
+          return false;
+        }
 
         spotifyAudioStream = await navigator.mediaDevices.getUserMedia({
           audio: {
@@ -1257,8 +1289,12 @@
         spotifyAnalyser = spotifyAudioCtx.createAnalyser();
         spotifyAnalyser.fftSize = 256;
         spotifyMediaSource.connect(spotifyAnalyser);
+        spotifyAudioSourceStatus = `STT_SYSTEM: aktiv (${preferred.label || 'ok'})`;
+        updateSpotifyPanel();
         return true;
       } catch (_) {
+        spotifyAudioSourceStatus = 'STT_SYSTEM: Zugriff fehlgeschlagen';
+        updateSpotifyPanel();
         return false;
       }
     }
@@ -1274,6 +1310,8 @@
       }
       spotifyMediaSource = null;
       spotifyAnalyser = null;
+      spotifyAudioSourceStatus = 'STT_SYSTEM: gestoppt';
+      updateSpotifyPanel();
     }
 
     // --- Visualizer ---
@@ -1541,17 +1579,26 @@
       stopVisualizer();
     }
 
-    function sendToSwift(action) {
+    function sendToSwiftMessage(message) {
       try {
         const handler = window?.webkit?.messageHandlers?.focus;
         if (!handler) return false;
-        try {
-          handler.postMessage({ action: action });
-        } catch (_) {
-          handler.postMessage(action);
-        }
+        handler.postMessage(message);
         return true;
       } catch (e) {}
+      return false;
+    }
+
+    function sendToSwift(action) {
+      if (!action) return false;
+      const sentObj = sendToSwiftMessage({ action: action });
+      if (sentObj) return true;
+      try {
+        const handler = window?.webkit?.messageHandlers?.focus;
+        if (!handler) return false;
+        handler.postMessage(action);
+        return true;
+      } catch (_) {}
       return false;
     }
 

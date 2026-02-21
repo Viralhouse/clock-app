@@ -10,8 +10,9 @@ class FocusMessageHandler: NSObject, WKScriptMessageHandler {
     weak var webView: WKWebView?
 
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+        let payload = message.body as? [String: Any]
         let action: String?
-        if let body = message.body as? [String: Any] {
+        if let body = payload {
             action = body["action"] as? String
         } else if let body = message.body as? String {
             action = body
@@ -40,6 +41,12 @@ class FocusMessageHandler: NSObject, WKScriptMessageHandler {
             runSpotifyCommand("playpause")
         case "spotifyNext":
             runSpotifyCommand("next track")
+        case "spotifySeek":
+            if let pos = payload?["position"] as? Double {
+                runSpotifySeek(position: pos)
+            } else if let pos = payload?["position"] as? NSNumber {
+                runSpotifySeek(position: pos.doubleValue)
+            }
         default:
             break
         }
@@ -157,6 +164,22 @@ class FocusMessageHandler: NSObject, WKScriptMessageHandler {
             if application "Spotify" is running then
                 tell application "Spotify"
                     \(command)
+                end tell
+            end if
+            """
+            _ = self.runAppleScript(script)
+            self.publishSpotifyState()
+        }
+    }
+
+    private func runSpotifySeek(position: Double) {
+        spotifyQueue.async { [weak self] in
+            guard let self else { return }
+            let safePosition = max(0, position)
+            let script = """
+            if application "Spotify" is running then
+                tell application "Spotify"
+                    set player position to \(safePosition)
                 end tell
             end if
             """
