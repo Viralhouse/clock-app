@@ -45,6 +45,8 @@ class FocusMessageHandler: NSObject, WKScriptMessageHandler {
             runSpotifyCommand("play")
         case "spotifyPause":
             runSpotifyCommand("pause")
+        case "spotifyToggleLike":
+            runSpotifyToggleLike()
         case "spotifySeek":
             if let pos = payload?["position"] as? Double {
                 runSpotifySeek(position: pos)
@@ -213,6 +215,61 @@ class FocusMessageHandler: NSObject, WKScriptMessageHandler {
         }
     }
 
+    private func runSpotifyToggleLike() {
+        spotifyQueue.async { [weak self] in
+            guard let self else { return }
+            let script = """
+            tell application "System Events"
+                if not (exists process "Spotify") then
+                    return "not_running"
+                end if
+
+                tell process "Spotify"
+                    set frontmost to true
+                    delay 0.08
+
+                    set likeButton to missing value
+                    set allButtons to buttons of entire contents of window 1
+
+                    repeat with b in allButtons
+                        try
+                            set btnName to ""
+                            set btnDesc to ""
+                            try
+                                set btnName to (name of b as text)
+                            end try
+                            try
+                                set btnDesc to (description of b as text)
+                            end try
+
+                            if btnName contains "Liked Songs" or btnName contains "Lieblingssongs" or btnName contains "Save to Your Liked Songs" or btnName contains "Remove from your Liked Songs" then
+                                set likeButton to b
+                                exit repeat
+                            end if
+
+                            if btnDesc contains "Liked Songs" or btnDesc contains "Lieblingssongs" or btnDesc contains "Save to Your Liked Songs" or btnDesc contains "Remove from your Liked Songs" then
+                                set likeButton to b
+                                exit repeat
+                            end if
+                        end try
+                    end repeat
+
+                    if likeButton is missing value then
+                        return "not_found"
+                    end if
+
+                    click likeButton
+                    return "ok"
+                end tell
+            end tell
+            """
+
+            let result = (self.runAppleScript(script) ?? "error").trimmingCharacters(in: .whitespacesAndNewlines)
+            self.publishSpotifyLikeResult(result)
+            self.publishSpotifyState()
+        }
+    }
+
     private func publishSpotifyState() {
         let state = fetchSpotifyState()
         DispatchQueue.main.async { [weak self] in
@@ -282,6 +339,15 @@ class FocusMessageHandler: NSObject, WKScriptMessageHandler {
               let json = String(data: data, encoding: .utf8) else { return }
         let js = "window.handleNativeSpotifyState && window.handleNativeSpotifyState(\(json));"
         webView.evaluateJavaScript(js, completionHandler: nil)
+    }
+
+    private func publishSpotifyLikeResult(_ result: String) {
+        DispatchQueue.main.async { [weak self] in
+            guard let webView = self?.webView else { return }
+            let escaped = result.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "'", with: "\\'")
+            let js = "window.handleNativeSpotifyLikeResult && window.handleNativeSpotifyLikeResult('\(escaped)');"
+            webView.evaluateJavaScript(js, completionHandler: nil)
+        }
     }
 
     private func runAppleScript(_ source: String) -> String? {
