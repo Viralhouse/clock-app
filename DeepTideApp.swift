@@ -232,40 +232,84 @@ class FocusMessageHandler: NSObject, WKScriptMessageHandler {
 
                 tell process "Spotify"
                     set frontmost to true
-                    delay 0.08
+                    delay 0.06
 
-                    set likeButton to missing value
-                    set allButtons to buttons of entire contents of window 1
+                    set toggled to false
 
-                    repeat with b in allButtons
+                    -- Strategy 1: Song/Titel menu item (most reliable across layouts)
+                    set songMenuItem to missing value
+                    repeat with mbi in menu bar items of menu bar 1
                         try
-                            set btnName to ""
-                            set btnDesc to ""
-                            try
-                                set btnName to (name of b as text)
-                            end try
-                            try
-                                set btnDesc to (description of b as text)
-                            end try
-
-                            if btnName contains "Liked Songs" or btnName contains "Lieblingssongs" or btnName contains "Save to Your Liked Songs" or btnName contains "Remove from your Liked Songs" then
-                                set likeButton to b
-                                exit repeat
-                            end if
-
-                            if btnDesc contains "Liked Songs" or btnDesc contains "Lieblingssongs" or btnDesc contains "Save to Your Liked Songs" or btnDesc contains "Remove from your Liked Songs" then
-                                set likeButton to b
+                            set menuTitle to (name of mbi as text)
+                            if menuTitle is "Song" or menuTitle is "Titel" then
+                                set songMenuItem to mbi
                                 exit repeat
                             end if
                         end try
                     end repeat
 
-                    if likeButton is missing value then
-                        return "not_found"
+                    if songMenuItem is not missing value then
+                        click songMenuItem
+                        delay 0.08
+                        try
+                            set targetItem to missing value
+                            set menuItemsList to menu items of menu 1 of songMenuItem
+                            repeat with mi in menuItemsList
+                                try
+                                    set itemName to (name of mi as text)
+                                    if itemName contains "Liked Songs" or itemName contains "Lieblingssongs" or itemName contains "Save to Your Liked Songs" or itemName contains "Remove from your Liked Songs" then
+                                        set targetItem to mi
+                                        exit repeat
+                                    end if
+                                end try
+                            end repeat
+
+                            if targetItem is not missing value then
+                                click targetItem
+                                set toggled to true
+                            end if
+                        end try
+                        key code 53
                     end if
 
-                    click likeButton
-                    return "ok"
+                    if toggled then
+                        return "ok_menu"
+                    end if
+
+                    -- Strategy 2: Generic menu scan fallback
+                    try
+                        set targetItem2 to missing value
+                        repeat with mbi2 in menu bar items of menu bar 1
+                            try
+                                click mbi2
+                                delay 0.03
+                                repeat with mi2 in menu items of menu 1 of mbi2
+                                    try
+                                        set itemName2 to (name of mi2 as text)
+                                        if itemName2 contains "Liked Songs" or itemName2 contains "Lieblingssongs" or itemName2 contains "Save to Your Liked Songs" or itemName2 contains "Remove from your Liked Songs" then
+                                            set targetItem2 to mi2
+                                            exit repeat
+                                        end if
+                                    end try
+                                end repeat
+                                key code 53
+                                if targetItem2 is not missing value then exit repeat
+                            end try
+                        end repeat
+
+                        if targetItem2 is not missing value then
+                            click targetItem2
+                            return "ok_menu_scan"
+                        end if
+                    end try
+
+                    -- Strategy 3: keyboard shortcut fallback (varies by app version)
+                    try
+                        keystroke "l" using {command down, shift down}
+                        return "ok_shortcut"
+                    on error
+                        return "not_found"
+                    end try
                 end tell
             end tell
             """

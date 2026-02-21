@@ -918,7 +918,7 @@
       btn.disabled = false;
       btn.textContent = '♥';
 
-      if (result === 'ok') {
+      if (result === 'ok' || result === 'ok_menu' || result === 'ok_menu_scan' || result === 'ok_shortcut') {
         btn.title = 'Liked-Songs aktualisiert';
       } else if (result === 'not_found') {
         btn.title = 'Like-Button in Spotify nicht gefunden';
