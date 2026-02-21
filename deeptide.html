@@ -495,9 +495,13 @@
       artist: '',
       album: '',
       duration: 0,
-      position: 0
+      position: 0,
+      volume: 0
     };
     let spotifyAudioSourceStatus = 'STT_SYSTEM: nicht initialisiert';
+    let spotifySignalLevel = 0;
+    let spotifyPrevVolumeBeforeMute = 70;
+    let spotifyLastSignalUpdateTs = 0;
     let vizAnimId = null;
     let vizEnabled = true;
     const vizColorModes = ['accent', 'rainbow', 'fire', 'ocean', 'purple'];
@@ -705,6 +709,24 @@
     }
 
     function toggleMute() {
+      if (soundMode === 'spotify') {
+        const slider = document.getElementById('volumeSlider');
+        const current = parseInt(slider.value, 10) || 0;
+        if (!isMuted) {
+          spotifyPrevVolumeBeforeMute = current > 0 ? current : (spotifyPrevVolumeBeforeMute || 70);
+          slider.value = '0';
+          setVolume(0);
+          isMuted = true;
+        } else {
+          const restore = Math.max(1, spotifyPrevVolumeBeforeMute || 70);
+          slider.value = String(restore);
+          setVolume(restore);
+          isMuted = false;
+        }
+        updateMuteButton();
+        return;
+      }
+
       isMuted = !isMuted;
       applyVolumeAll();
       updateMuteButton();
@@ -712,6 +734,12 @@
 
     function setVolume(val) {
       volume = val / 100;
+      if (soundMode === 'spotify') {
+        const numVal = Math.max(0, Math.min(100, Number(val) || 0));
+        isMuted = numVal === 0;
+        sendToSwiftMessage({ action: 'spotifySetVolume', volume: numVal });
+        updateMuteButton();
+      }
       applyVolumeAll();
     }
 
@@ -795,7 +823,7 @@
 
       document.getElementById('spotifyTrackName').textContent = trackName;
       document.getElementById('spotifyArtistName').textContent = artistName;
-      document.getElementById('spotifyStateText').textContent = `Status: ${stateLabel} · ${spotifyAudioSourceStatus}`;
+      document.getElementById('spotifyStateText').textContent = `Status: ${stateLabel} · ${spotifyAudioSourceStatus} · Signal ${Math.round(spotifySignalLevel * 100)}%`;
       document.getElementById('spotifyPlayPauseBtn').textContent = spotifyState.playerState === 'playing' ? 'Pause' : 'Play';
       updateSpotifyProgress();
     }
@@ -809,8 +837,16 @@
         artist: String(payload.artist || ''),
         album: String(payload.album || ''),
         duration: Number(payload.duration || 0),
-        position: Number(payload.position || 0)
+        position: Number(payload.position || 0),
+        volume: Number(payload.volume || 0)
       };
+      if (soundMode === 'spotify') {
+        const slider = document.getElementById('volumeSlider');
+        const volValue = Math.max(0, Math.min(100, Math.round(spotifyState.volume || 0)));
+        slider.value = String(volValue);
+        isMuted = volValue === 0;
+        updateMuteButton();
+      }
       updateSpotifyPanel();
     }
 
@@ -1229,6 +1265,9 @@
       if (soundMode === 'lofi') startLofi();
       else if (soundMode === 'spotify') {
         sendToSwift('spotifyRefresh');
+        const slider = document.getElementById('volumeSlider');
+        const currentVol = Math.max(0, Math.min(100, Number(slider.value) || 0));
+        sendToSwiftMessage({ action: 'spotifySetVolume', volume: currentVol });
         initSpotifySystemAudioCapture();
       }
       else if (soundMode === 'ocean') startOcean();
@@ -1311,6 +1350,7 @@
       spotifyMediaSource = null;
       spotifyAnalyser = null;
       spotifyAudioSourceStatus = 'STT_SYSTEM: gestoppt';
+      spotifySignalLevel = 0;
       updateSpotifyPanel();
     }
 
@@ -1428,6 +1468,27 @@
 
       const dataArray = new Uint8Array(analyser.frequencyBinCount);
       analyser.getByteFrequencyData(dataArray);
+      if (soundMode === 'spotify') {
+        let energy = 0;
+        for (let i = 0; i < dataArray.length; i++) energy += dataArray[i];
+        const freqLevel = (energy / dataArray.length) / 255;
+
+        const timeData = new Uint8Array(analyser.fftSize);
+        analyser.getByteTimeDomainData(timeData);
+        let sumSq = 0;
+        for (let i = 0; i < timeData.length; i++) {
+          const centered = (timeData[i] - 128) / 128;
+          sumSq += centered * centered;
+        }
+        const rms = Math.sqrt(sumSq / timeData.length);
+        spotifySignalLevel = Math.max(freqLevel, Math.min(1, rms * 3.5));
+
+        const now = Date.now();
+        if (now - spotifyLastSignalUpdateTs > 350) {
+          spotifyLastSignalUpdateTs = now;
+          updateSpotifyPanel();
+        }
+      }
 
       // Even bin distribution: spread all frequency bins equally across bars
       const binCount = dataArray.length;

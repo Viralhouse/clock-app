@@ -47,6 +47,12 @@ class FocusMessageHandler: NSObject, WKScriptMessageHandler {
             } else if let pos = payload?["position"] as? NSNumber {
                 runSpotifySeek(position: pos.doubleValue)
             }
+        case "spotifySetVolume":
+            if let vol = payload?["volume"] as? Double {
+                runSpotifySetVolume(vol)
+            } else if let vol = payload?["volume"] as? NSNumber {
+                runSpotifySetVolume(vol.doubleValue)
+            }
         default:
             break
         }
@@ -188,6 +194,22 @@ class FocusMessageHandler: NSObject, WKScriptMessageHandler {
         }
     }
 
+    private func runSpotifySetVolume(_ volume: Double) {
+        spotifyQueue.async { [weak self] in
+            guard let self else { return }
+            let clamped = max(0, min(100, Int(volume.rounded())))
+            let script = """
+            if application "Spotify" is running then
+                tell application "Spotify"
+                    set sound volume to \(clamped)
+                end tell
+            end if
+            """
+            _ = self.runAppleScript(script)
+            self.publishSpotifyState()
+        }
+    }
+
     private func publishSpotifyState() {
         let state = fetchSpotifyState()
         DispatchQueue.main.async { [weak self] in
@@ -205,6 +227,7 @@ class FocusMessageHandler: NSObject, WKScriptMessageHandler {
                 set albumName to ""
                 set durationSec to 0
                 set positionSec to 0
+                set appVolume to 0
 
                 try
                     set currentTrackRef to current track
@@ -214,15 +237,18 @@ class FocusMessageHandler: NSObject, WKScriptMessageHandler {
                     set durationSec to ((duration of currentTrackRef) / 1000)
                     set positionSec to player position
                 end try
+                try
+                    set appVolume to sound volume
+                end try
 
-                return "1" & linefeed & playerStateText & linefeed & trackName & linefeed & artistName & linefeed & albumName & linefeed & (durationSec as text) & linefeed & (positionSec as text)
+                return "1" & linefeed & playerStateText & linefeed & trackName & linefeed & artistName & linefeed & albumName & linefeed & (durationSec as text) & linefeed & (positionSec as text) & linefeed & (appVolume as text)
             end tell
         else
-            return "0" & linefeed & "stopped" & linefeed & "" & linefeed & "" & linefeed & "" & linefeed & "0" & linefeed & "0"
+            return "0" & linefeed & "stopped" & linefeed & "" & linefeed & "" & linefeed & "" & linefeed & "0" & linefeed & "0" & linefeed & "0"
         end if
         """
 
-        let output = runAppleScript(script) ?? "0\nstopped\n\n\n\n0\n0"
+        let output = runAppleScript(script) ?? "0\nstopped\n\n\n\n0\n0\n0"
         let parts = output
             .components(separatedBy: CharacterSet.newlines)
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
@@ -233,6 +259,7 @@ class FocusMessageHandler: NSObject, WKScriptMessageHandler {
         let album = parts.indices.contains(4) ? parts[4] : ""
         let duration = Double(parts.indices.contains(5) ? parts[5] : "0") ?? 0
         let position = Double(parts.indices.contains(6) ? parts[6] : "0") ?? 0
+        let volume = Double(parts.indices.contains(7) ? parts[7] : "0") ?? 0
 
         return [
             "running": running,
@@ -241,7 +268,8 @@ class FocusMessageHandler: NSObject, WKScriptMessageHandler {
             "artist": artist,
             "album": album,
             "duration": duration,
-            "position": position
+            "position": position,
+            "volume": volume
         ]
     }
 
