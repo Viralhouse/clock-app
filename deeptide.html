@@ -294,7 +294,7 @@
     .hidden { display: none !important; }
     .playlist {
       margin-top: 1rem;
-      width: min(620px, 92vw);
+      width: min(540px, 82vw);
       background: var(--panel-bg);
       border: 1px solid var(--panel-border);
       border-radius: 10px;
@@ -918,7 +918,7 @@
       btn.disabled = false;
       btn.textContent = '♥';
 
-      if (result === 'ok' || result === 'ok_menu' || result === 'ok_menu_scan' || result === 'ok_shortcut') {
+      if (result === 'ok' || result === 'ok_direct_button' || result === 'ok_menu' || result === 'ok_menu_scan' || result === 'ok_shortcut') {
         btn.title = 'Liked-Songs aktualisiert';
       } else if (result === 'not_found') {
         btn.title = 'Like-Button in Spotify nicht gefunden';

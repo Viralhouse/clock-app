@@ -236,6 +236,39 @@ class FocusMessageHandler: NSObject, WKScriptMessageHandler {
 
                     set toggled to false
 
+                    -- Strategy 0: direct like button in main content (German/English labels)
+                    try
+                        set directLikeButton to missing value
+                        set allButtons to buttons of entire contents of window 1
+                        repeat with b in allButtons
+                            try
+                                set btnName to ""
+                                set btnDesc to ""
+                                try
+                                    set btnName to (name of b as text)
+                                end try
+                                try
+                                    set btnDesc to (description of b as text)
+                                end try
+
+                                if btnName contains "Zu Lieblingssongs hinzufügen" or btnName contains "Aus Lieblingssongs entfernen" or btnName contains "Liked Songs" or btnName contains "Save to your Liked Songs" or btnName contains "Remove from your Liked Songs" then
+                                    set directLikeButton to b
+                                    exit repeat
+                                end if
+
+                                if btnDesc contains "Zu Lieblingssongs hinzufügen" or btnDesc contains "Aus Lieblingssongs entfernen" or btnDesc contains "Liked Songs" or btnDesc contains "Save to your Liked Songs" or btnDesc contains "Remove from your Liked Songs" then
+                                    set directLikeButton to b
+                                    exit repeat
+                                end if
+                            end try
+                        end repeat
+
+                        if directLikeButton is not missing value then
+                            click directLikeButton
+                            return "ok_direct_button"
+                        end if
+                    end try
+
                     -- Strategy 1: Song/Titel menu item (most reliable across layouts)
                     set songMenuItem to missing value
                     repeat with mbi in menu bar items of menu bar 1
@@ -257,7 +290,7 @@ class FocusMessageHandler: NSObject, WKScriptMessageHandler {
                             repeat with mi in menuItemsList
                                 try
                                     set itemName to (name of mi as text)
-                                    if itemName contains "Liked Songs" or itemName contains "Lieblingssongs" or itemName contains "Save to Your Liked Songs" or itemName contains "Remove from your Liked Songs" then
+                                    if itemName contains "Zu Lieblingssongs hinzufügen" or itemName contains "Aus Lieblingssongs entfernen" or itemName contains "Liked Songs" or itemName contains "Lieblingssongs" or itemName contains "Save to Your Liked Songs" or itemName contains "Remove from your Liked Songs" then
                                         set targetItem to mi
                                         exit repeat
                                     end if
@@ -286,7 +319,7 @@ class FocusMessageHandler: NSObject, WKScriptMessageHandler {
                                 repeat with mi2 in menu items of menu 1 of mbi2
                                     try
                                         set itemName2 to (name of mi2 as text)
-                                        if itemName2 contains "Liked Songs" or itemName2 contains "Lieblingssongs" or itemName2 contains "Save to Your Liked Songs" or itemName2 contains "Remove from your Liked Songs" then
+                                        if itemName2 contains "Zu Lieblingssongs hinzufügen" or itemName2 contains "Aus Lieblingssongs entfernen" or itemName2 contains "Liked Songs" or itemName2 contains "Lieblingssongs" or itemName2 contains "Save to Your Liked Songs" or itemName2 contains "Remove from your Liked Songs" then
                                             set targetItem2 to mi2
                                             exit repeat
                                         end if
