@@ -45,6 +45,10 @@ class FocusMessageHandler: NSObject, WKScriptMessageHandler {
             runSpotifyCommand("play")
         case "spotifyPause":
             runSpotifyCommand("pause")
+        case "spotifyPlayFast":
+            runSpotifyCommand("play", refreshState: false)
+        case "spotifyPauseFast":
+            runSpotifyCommand("pause", refreshState: false)
         case "spotifyToggleLike":
             runSpotifyToggleLike()
         case "spotifySeek":
@@ -169,7 +173,7 @@ class FocusMessageHandler: NSObject, WKScriptMessageHandler {
         }
     }
 
-    private func runSpotifyCommand(_ command: String) {
+    private func runSpotifyCommand(_ command: String, refreshState: Bool = true) {
         spotifyQueue.async { [weak self] in
             guard let self else { return }
             let script = """
@@ -180,7 +184,9 @@ class FocusMessageHandler: NSObject, WKScriptMessageHandler {
             end if
             """
             _ = self.runAppleScript(script)
-            self.publishSpotifyState()
+            if refreshState {
+                self.publishSpotifyState()
+            }
         }
     }
 
