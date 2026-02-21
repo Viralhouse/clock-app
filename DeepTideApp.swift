@@ -224,6 +224,16 @@ class FocusMessageHandler: NSObject, WKScriptMessageHandler {
     private func runSpotifyToggleLike() {
         spotifyQueue.async { [weak self] in
             guard let self else { return }
+            // Most reliable path: user-defined Shortcuts action for "like current Spotify track".
+            let shortcutCandidates = ["SpotifyLikeCurrentTrack", "SpotifyLike", "LikeCurrentTrack"]
+            for name in shortcutCandidates {
+                if self.runNamedShortcut(name: name, timeout: 5.0) {
+                    self.publishSpotifyLikeResult("ok_shortcuts_app")
+                    self.publishSpotifyState()
+                    return
+                }
+            }
+
             let script = """
             tell application "System Events"
                 if not (exists process "Spotify") then
@@ -351,6 +361,36 @@ class FocusMessageHandler: NSObject, WKScriptMessageHandler {
             self.publishSpotifyLikeResult(result)
             self.publishSpotifyState()
         }
+    }
+
+    private func runNamedShortcut(name: String, timeout: TimeInterval) -> Bool {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/shortcuts")
+        process.arguments = ["run", name]
+
+        let outPipe = Pipe()
+        let errPipe = Pipe()
+        process.standardOutput = outPipe
+        process.standardError = errPipe
+
+        do {
+            try process.run()
+        } catch {
+            return false
+        }
+
+        let deadline = Date().addingTimeInterval(timeout)
+        while process.isRunning && Date() < deadline {
+            Thread.sleep(forTimeInterval: 0.08)
+        }
+        if process.isRunning {
+            process.terminate()
+            return false
+        }
+
+        _ = outPipe.fileHandleForReading.readDataToEndOfFile()
+        _ = errPipe.fileHandleForReading.readDataToEndOfFile()
+        return process.terminationStatus == 0
     }
 
     private func publishSpotifyState() {
