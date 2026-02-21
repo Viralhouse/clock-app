@@ -351,6 +351,16 @@ class FocusMessageHandler: NSObject, WKScriptMessageHandler {
                         keystroke "l" using {command down, shift down}
                         return "ok_shortcut"
                     on error
+                    end try
+
+                    -- Strategy 4: coordinate fallback for "+" button bottom-left in now-playing bar
+                    try
+                        set w to window 1
+                        set {xPos, yPos} to position of w
+                        set {wSize, hSize} to size of w
+                        click at {xPos + 30, yPos + hSize - 28}
+                        return "ok_point_click"
+                    on error
                         return "not_found"
                     end try
                 end tell
