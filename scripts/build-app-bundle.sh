@@ -14,7 +14,7 @@ RES_DIR="$APP_DIR/Contents/Resources"
 WEB_DIR="$RES_DIR/Web"
 
 SDK_PATH="/Library/Developer/CommandLineTools/SDKs/MacOSX15.5.sdk"
-if [[ ! -d "$SDK_PATH" ]]; then
+if [[ ! -d "$SDK_PATH" || ! -f "$SDK_PATH/SDKSettings.json" ]]; then
   SDK_PATH="$(xcrun --show-sdk-path)"
 fi
 
